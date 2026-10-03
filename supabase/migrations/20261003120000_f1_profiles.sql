@@ -145,6 +145,21 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- Users who signed up before this migration (for example test invites sent
+-- during setup) get their rows now, so the app never sees a user without a
+-- profile.
+insert into public.profiles (id, full_name, avatar_url)
+select
+  u.id,
+  left(trim(coalesce(u.raw_user_meta_data ->> 'full_name', u.raw_user_meta_data ->> 'name', '')), 80),
+  nullif(left(coalesce(u.raw_user_meta_data ->> 'avatar_url', u.raw_user_meta_data ->> 'picture', ''), 500), '')
+from auth.users u
+on conflict (id) do nothing;
+
+insert into public.profile_private (user_id)
+select id from public.profiles
+on conflict (user_id) do nothing;
+
 -- 6. Avatar storage ---------------------------------------------------------
 -- Public bucket (photos show on ads and requests). Each user writes only
 -- inside a folder named with their own user id: <uid>/avatar-<time>.webp

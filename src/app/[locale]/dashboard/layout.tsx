@@ -1,5 +1,6 @@
 import { redirect } from "@/i18n/navigation";
-import { getCurrentProfile } from "@/lib/auth";
+import { getTranslations } from "next-intl/server";
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 
 export default async function DashboardLayout({
@@ -8,10 +9,22 @@ export default async function DashboardLayout({
 }: LayoutProps<"/[locale]/dashboard">) {
   const { locale } = await params;
   const lang = locale as "bn" | "en";
+  const user = await getCurrentUser();
   const profile = await getCurrentProfile();
 
   // The proxy already sends visitors to /login. This is a second guard.
-  if (!profile) return redirect({ href: "/login", locale: lang });
+  if (!user) return redirect({ href: "/login", locale: lang });
+
+  // A signed-in user without a profile row (should not happen once the F1
+  // migration has run). Redirecting to /login here would loop, so explain.
+  if (!profile) {
+    const t = await getTranslations("Errors");
+    return (
+      <div className="mx-auto max-w-md px-4 py-20 text-center text-muted-foreground">
+        {t("generic")}
+      </div>
+    );
+  }
   // Google sign-ups answer the mode question first.
   if (!profile.default_mode) return redirect({ href: "/onboarding", locale: lang });
 
