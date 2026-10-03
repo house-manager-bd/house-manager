@@ -96,15 +96,15 @@ A **public repo inside a free GitHub organization** avoids both, and gives all f
 
 ### 3.1 Sign up and create the projects
 1. Go to supabase.com, click **Start your project**, **Continue with GitHub**.
-2. Create an organization when asked: name `House Manager`, type Personal or Educational, plan **Free**.
+2. Create an organization named `House Manager`, type Personal or Educational, plan **Free**. If you already have another organization (for example a personal one), still create this new one from the organization switcher at the top left, so teammates you invite only see House Manager projects.
 3. Click **New project**:
    - Name: `house-manager-dev`
    - Database password: click **Generate a password**, then save it in the password manager right away. You will rarely need it, but it cannot be shown again.
    - Region: **Southeast Asia (Singapore)**, closest to Dhaka.
    - Click **Create new project** and wait 1 to 2 minutes.
-4. Repeat for `house-manager-demo`. The free plan allows two active projects.
-   - **dev**: everyone builds and tests here, data can be messy.
-   - **demo**: only for the live site and the viva, with clean sample data.
+4. The free plan allows **two active projects in total, across every organization where you are Owner or Admin**. Projects you already have elsewhere count. Paused projects do not.
+   - **dev**: everyone builds and tests here, data can be messy. Create it now.
+   - **demo**: only for the live site and the viva, with clean sample data. If you have a free slot, create `house-manager-demo` now. If your slots are full, skip it for now: F1 deploys against dev, and before the prototype demo either pause an unused project or let a teammate create the demo project in their own account and invite you.
 
 ### 3.2 Invite the team
 **Organization settings**, **Team**, **Invite**: add the four teammates with the **Developer** role. If the free plan does not offer invites when you try, share dashboard access only when needed. Teammates only need the public keys from section 7 to code.
