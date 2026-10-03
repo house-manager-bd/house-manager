@@ -235,6 +235,55 @@ If a secret key, app password or client secret ever gets committed or posted, **
 
 ---
 
+## 8. After the F1 code is merged (Sifat)
+
+### 8.1 Run the F1 migration on dev
+Supabase dashboard, **dev** project, **SQL Editor**, **New query**. Paste the whole of `supabase/migrations/20261003120000_f1_profiles.sql` and click **Run**. It creates `profiles`, `profile_private`, the sign-up trigger and the `avatars` storage bucket, all with RLS. Run it **once** per project (dev now, demo later).
+
+Check: **Table Editor** shows `profiles` and `profile_private` with a green "RLS enabled" label, and **Storage** shows a public `avatars` bucket.
+
+### 8.2 Import the project into Vercel
+1. vercel.com, **Add New**, **Project**, pick `house-manager-bd/house-manager`, **Import**.
+2. Framework preset: Next.js (detected). Leave build settings as they are.
+3. **Environment Variables** (until the demo project exists, use the **dev** values):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - `NEXT_PUBLIC_SITE_URL` = the address Vercel gives you, for example `https://house-manager-bd.vercel.app` (you can set it after the first deploy and redeploy).
+4. **Deploy**. Note the address.
+5. Settings, General, **Node.js Version**: 24.x, to match everyone's laptop.
+
+### 8.3 Allow the new address everywhere
+- Supabase (dev), **Authentication**, **URL Configuration**, **Redirect URLs**: add `https://<your-vercel-address>/**` and, for pull request previews, `https://house-manager-*.vercel.app/**` (check one preview link's address and adjust the pattern if it looks different).
+- Google Auth Platform, **Clients**, `House Manager Web`, **Authorized JavaScript origins**: add `https://<your-vercel-address>`. The redirect URI stays the Supabase callback.
+
+### 8.4 Email templates that work on phones (recommended)
+By default, the confirmation link only works in the same browser that signed up. Someone who signs up in Chrome but opens the email in the Gmail app gets "link expired". These templates fix that. Supabase, **Authentication**, **Emails**, **Templates**:
+
+**Confirm signup**, subject `হাউস ম্যানেজার অ্যাকাউন্ট নিশ্চিত করুন`:
+```html
+<h2>হাউস ম্যানেজারে স্বাগতম</h2>
+<p>অ্যাকাউন্ট খোলা শেষ করতে নিচের লিংকে চাপুন।</p>
+<p>Welcome to House Manager. Tap the English link below to finish creating your account.</p>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">নিশ্চিত করুন</a></p>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=email">Confirm my account</a></p>
+```
+
+**Reset password**, subject `হাউস ম্যানেজারের পাসওয়ার্ড নতুন করে সেট করুন`:
+```html
+<p>নতুন পাসওয়ার্ড দিতে নিচের লিংকে চাপুন। আপনি অনুরোধ না করলে এই ইমেইলটি উপেক্ষা করুন।</p>
+<p>Tap the English link below to set a new password. If you did not ask for this, ignore this email.</p>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery">পাসওয়ার্ড বদলান</a></p>
+<p><a href="{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=recovery">Reset my password</a></p>
+```
+
+`{{ .RedirectTo }}` is the callback address the app sends (for example `http://localhost:3000/auth/callback?next=/bn/dashboard`). It already contains a `?`, so the template adds the rest with `&`. This only works when that address matches the Redirect URLs list (3.4 and 8.3). Otherwise Supabase falls back to the Site URL and the link breaks. The app works with both the default and these templates.
+
+### 8.5 Make yourself an admin (for F5 later)
+SQL Editor: `update public.profiles set is_admin = true where id = (select id from auth.users where email = 'your@email.com');`
+Repeat for each team member after they sign up. Nobody can do this from the app.
+
+---
+
 ## Final checklist
 
 - [ ] Project Gmail created, 2-Step Verification on
@@ -251,5 +300,6 @@ If a secret key, app password or client secret ever gets committed or posted, **
 - [ ] Google provider enabled in both Supabase projects
 - [ ] Gmail app password created, custom SMTP set in both projects, test invite received
 - [ ] Dev URL and publishable key shared with the team
+- [ ] F1 migration run on dev, Vercel project imported, addresses allowed in Supabase and Google (section 8)
 
 When every box is ticked, start a new chat in the project with "Build F1".
