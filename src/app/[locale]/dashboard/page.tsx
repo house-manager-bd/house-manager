@@ -14,8 +14,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function DashboardPage() {
   const t = await getTranslations("Dashboard");
-  const profile = await getCurrentProfile();
-  const privateProfile = await getCurrentPrivateProfile();
+  const [profile, privateProfile] = await Promise.all([
+    getCurrentProfile(),
+    getCurrentPrivateProfile(),
+  ]);
   if (!profile?.default_mode) return null; // The layout redirects first.
 
   const mode = profile.default_mode;

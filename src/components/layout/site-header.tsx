@@ -8,8 +8,7 @@ import { UserMenu } from "./user-menu";
 
 export async function SiteHeader() {
   const t = await getTranslations("Nav");
-  const user = await getCurrentUser();
-  const profile = user ? await getCurrentProfile() : null;
+  const [user, profile] = await Promise.all([getCurrentUser(), getCurrentProfile()]);
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -20,7 +19,7 @@ export async function SiteHeader() {
           {user ? (
             <UserMenu
               fullName={profile?.full_name ?? ""}
-              email={user.email ?? ""}
+              email={user.email}
               avatarUrl={profile?.avatar_url ?? null}
               mode={profile?.default_mode ?? null}
             />
