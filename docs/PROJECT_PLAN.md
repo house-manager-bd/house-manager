@@ -190,13 +190,13 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Properties (shared with House Manage)**
 - `buildings`: id, created_by, owner_id (empty while unclaimed), name (for example "Rahman Villa"), area_id, landmark, approx_lat, approx_lng, total_floors, gas (titas_line, lpg, none), amenities (array: lift, parking, generator, security_guard, cctv, rooftop), house_rules (pets, smoking, guests, gate closing time, rooftop use, plus free text), created_at, updated_at.
-- `building_private`: building_id, road_address, house_no, exact_lat, exact_lng. Readable by logged-in members while the building has an active ad, by the building's managers, and by its active tenants.
+- `building_private`: building_id, road_address, house_no, exact_lat, exact_lng, offset_lat, offset_lng (the fixed offset behind the public pin). Readable by logged-in members while the building has an active ad, by the building's managers, and by its active tenants.
 - `building_managers`: building_id, user_id, role (owner, caretaker), added_by, created_at.
 - `units`: id, building_id, label (for example "4B", "Room 2", "Mess room 1"), unit_kind (flat, room, mess_room), floor_no, size_sqft, bedrooms, bathrooms, balconies, facing, furnishing, capacity (beds in a mess room, otherwise 1), status (vacant, listed, occupied), created_at, updated_at.
 - `nearby_places`: id, building_id, kind (metro, bus_stop, market, school, hospital, mosque, park), name, walk_minutes. Entered once per building, shown on every ad in it.
 
 **Listings (one ad for one unit)**
-- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, created_at, updated_at.
+- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, created_at, updated_at.
 - `listing_private`: listing_id, contact_phone, whatsapp. Readable by logged-in members for active ads, and by the poster.
 - `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed.
 
@@ -486,7 +486,7 @@ house-manager/
 
 Each feature is small enough to build, test and deploy on its own.
 
-- [ ] **F1: Foundation.** Next.js app with Tailwind, shadcn/ui and next-intl (bn and en). Header with language toggle, footer. Supabase connected. Sign up with email and password, Google sign-in, log out. Profile page (name, photo, phone, language). Sign-up question that sets the default mode, and mode-based menus with a switch. Free SMTP connected. Deployed to Vercel.
+- [x] **F1: Foundation.** Next.js app with Tailwind, shadcn/ui and next-intl (bn and en). Header with language toggle, footer. Supabase connected. Sign up with email and password, Google sign-in, log out. Profile page (name, photo, phone, language). Sign-up question that sets the default mode, and mode-based menus with a switch. Free SMTP connected. Deployed to Vercel.
   Done when: a teammate opens the live link on a phone, switches to English, signs up with Google, and edits their profile.
 - [ ] **F2: Properties and posting an ad (text).** Location tables seeded (Bangladesh divisions and districts, Mirpur thanas and areas). Wizard: (1) pick a building or add one (name, location, pin, gas, facilities, house rules, nearby places), (2) pick a unit or add one, (3) ad type and who is posting, (4) costs with the advance warning, (5) tenant types and extra rules, (6) review. Save as draft, submit. A simple "My properties" page lists buildings and units with their status.
   Done when: a member adds one building with two units, posts a flat ad for one unit, starts a second ad without retyping the address, and sees the advance warning above one month.
@@ -528,6 +528,13 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-03 | Free tier only, monetization later with no commission | Course budget. Commission model failed for Bproperty | Commission per rental |
 | 2026-10-03 | Ads attach to units inside buildings, entered once per landlord | Landlords with several properties, one-click re-listing, building-level house rules, and a building community in House Manage all need one shared building record | Each ad carrying its own full address and property details |
 | 2026-10-03 | Caretakers are building managers added by the owner | The same role can post ads now and manage tenants later | A posted_as flag only |
+| 2026-10-05 | Vercel Functions run in Singapore (sin1), set in vercel.json | The database is in Singapore. Vercel's default (Washington) added about a second to every page | Default region |
+| 2026-10-05 | Pages check the login with getClaims and run lookups in parallel | getClaims checks the token locally, getUser asks the Auth server every time | getUser on every page |
+| 2026-10-05 | The building form has four short parts (basics, address and pin, facilities and rules, nearby places) | Keeps each part at about six fields (U1 usability rule) | One long form |
+| 2026-10-05 | Who is posting comes from the person's link to the building (owner, caretaker, or the tenant who added it) | The same person cannot claim different roles on different ads for one building | Free choice per ad |
+| 2026-10-05 | One open ad per unit, drafts included | Stops two managers drafting the same unit, and keeps "one active ad per unit" simple | Several drafts per unit |
+| 2026-10-05 | In F2, Publish makes an ad live straight away | Photos (F3) and moderation (F5) are not built yet. F3 adds the 4 photo minimum, F5 adds the review queue | Waiting for review from F2 |
+| 2026-10-05 | Added gas_bill to listings | Who pays for gas is one of the first questions in Dhaka ads | Leaving it to other_charges |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
