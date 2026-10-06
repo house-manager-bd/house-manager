@@ -6,7 +6,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 const handleI18n = createIntlMiddleware(routing);
 
 // Pages that need a signed-in user, written without the locale prefix.
-const PROTECTED_PREFIXES = ["/dashboard", "/onboarding"];
+const PROTECTED_PREFIXES = ["/dashboard", "/onboarding", "/post"];
 // Pages a signed-in user should not see again.
 const GUEST_ONLY = ["/login", "/signup", "/forgot-password"];
 

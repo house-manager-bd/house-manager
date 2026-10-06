@@ -2,50 +2,240 @@
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
 export type AppLocale = "bn" | "en";
 export type AppMode = "seek" | "host";
+export type GasType = "titas_line" | "lpg" | "none";
+export type ManagerRole = "owner" | "caretaker";
+export type UnitKind = "flat" | "room" | "mess_room";
+export type UnitStatus = "vacant" | "listed" | "occupied";
+export type Furnishing = "unfurnished" | "semi_furnished" | "furnished";
+export type NearbyKind = "metro" | "bus_stop" | "market" | "school" | "hospital" | "mosque" | "park";
+export type ListingType = "flat" | "room" | "sublet" | "mess_seat";
+export type PostedAs = "owner" | "caretaker" | "tenant_sublet";
+export type ListingStatus =
+  | "draft"
+  | "pending_review"
+  | "active"
+  | "rented"
+  | "expired"
+  | "rejected"
+  | "hidden";
+export type ElectricityBilling = "prepaid" | "postpaid" | "included";
+export type WaterBilling = "included" | "tenant_pays";
+export type GasBilling = "included" | "tenant_pays";
+
+export type HouseRules = {
+  pets?: boolean;
+  smoking?: boolean;
+  guests_overnight?: boolean;
+  gate_closing_time?: string | null;
+  rooftop_use?: boolean;
+  notes?: string | null;
+};
+
+type LocationRow = { id: number; name_en: string; name_bn: string };
+
+type Table<Row, Insert = never, Update = never> = {
+  Row: Row;
+  Insert: Insert;
+  Update: Update;
+  Relationships: [];
+};
+
+export type ProfileRow = {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  preferred_locale: AppLocale;
+  default_mode: AppMode | null;
+  is_admin: boolean;
+  trust_level: number;
+  is_banned: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BuildingRow = {
+  id: string;
+  created_by: string;
+  owner_id: string | null;
+  name: string;
+  area_id: number;
+  landmark: string | null;
+  approx_lat: number;
+  approx_lng: number;
+  total_floors: number | null;
+  gas: GasType;
+  amenities: string[];
+  house_rules: HouseRules;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BuildingPrivateRow = {
+  building_id: string;
+  road_address: string;
+  house_no: string | null;
+  exact_lat: number;
+  exact_lng: number;
+  offset_lat: number;
+  offset_lng: number;
+};
+
+export type UnitRow = {
+  id: string;
+  building_id: string;
+  label: string;
+  unit_kind: UnitKind;
+  floor_no: number | null;
+  size_sqft: number | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  balconies: number | null;
+  facing: string | null;
+  furnishing: Furnishing;
+  capacity: number;
+  status: UnitStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+type UnitEditable = Partial<
+  Pick<
+    UnitRow,
+    | "label"
+    | "unit_kind"
+    | "floor_no"
+    | "size_sqft"
+    | "bedrooms"
+    | "bathrooms"
+    | "balconies"
+    | "facing"
+    | "furnishing"
+    | "capacity"
+  >
+>;
+
+export type ListingRow = {
+  id: string;
+  unit_id: string;
+  posted_by: string;
+  posted_as: PostedAs;
+  owner_name: string | null;
+  sublet_consent: boolean;
+  listing_type: ListingType;
+  tenant_types: string[];
+  title: string | null;
+  description: string | null;
+  open_slots: number;
+  max_occupants: number | null;
+  monthly_rent: number | null;
+  rent_negotiable: boolean;
+  advance_months: number | null;
+  service_charge: number | null;
+  electricity: ElectricityBilling | null;
+  water: WaterBilling | null;
+  gas_bill: GasBilling | null;
+  other_charges: string | null;
+  extra_rules: string | null;
+  agreement_required: boolean;
+  dmp_form_required: boolean;
+  available_from: string | null;
+  status: ListingStatus;
+  rejection_reason: string | null;
+  published_at: string | null;
+  expires_at: string | null;
+  is_featured: boolean;
+  featured_until: string | null;
+  view_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ListingEditable = Partial<
+  Pick<
+    ListingRow,
+    | "owner_name"
+    | "sublet_consent"
+    | "listing_type"
+    | "tenant_types"
+    | "title"
+    | "description"
+    | "open_slots"
+    | "max_occupants"
+    | "monthly_rent"
+    | "rent_negotiable"
+    | "advance_months"
+    | "service_charge"
+    | "electricity"
+    | "water"
+    | "gas_bill"
+    | "other_charges"
+    | "extra_rules"
+    | "agreement_required"
+    | "available_from"
+  >
+>;
 
 export type Database = {
   public: {
     Tables: {
-      profiles: {
-        Row: {
-          id: string;
-          full_name: string;
-          avatar_url: string | null;
-          preferred_locale: AppLocale;
-          default_mode: AppMode | null;
-          is_admin: boolean;
-          trust_level: number;
-          is_banned: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: never;
-        Update: {
+      profiles: Table<
+        ProfileRow,
+        never,
+        {
           full_name?: string;
           avatar_url?: string | null;
           preferred_locale?: AppLocale;
           default_mode?: AppMode | null;
-        };
-        Relationships: [];
-      };
-      profile_private: {
-        Row: {
-          user_id: string;
-          phone: string | null;
-          phone_verified: boolean;
-          updated_at: string;
-        };
-        Insert: never;
-        Update: {
-          phone?: string | null;
-        };
-        Relationships: [];
-      };
+        }
+      >;
+      profile_private: Table<
+        { user_id: string; phone: string | null; phone_verified: boolean; updated_at: string },
+        never,
+        { phone?: string | null }
+      >;
+      divisions: Table<LocationRow>;
+      districts: Table<LocationRow & { division_id: number }>;
+      thanas: Table<LocationRow & { district_id: number }>;
+      areas: Table<LocationRow & { thana_id: number; center_lat: number; center_lng: number }>;
+      buildings: Table<BuildingRow>;
+      building_private: Table<BuildingPrivateRow>;
+      building_managers: Table<{
+        building_id: string;
+        user_id: string;
+        role: ManagerRole;
+        added_by: string | null;
+        created_at: string;
+      }>;
+      nearby_places: Table<{
+        id: string;
+        building_id: string;
+        kind: NearbyKind;
+        name: string;
+        walk_minutes: number | null;
+      }>;
+      units: Table<
+        UnitRow,
+        UnitEditable & { building_id: string; label: string; unit_kind: UnitKind },
+        UnitEditable
+      >;
+      listings: Table<ListingRow, never, ListingEditable>;
+      listing_private: Table<
+        { listing_id: string; contact_phone: string | null; whatsapp: string | null },
+        never,
+        { contact_phone?: string | null; whatsapp?: string | null }
+      >;
     };
     Views: { [_ in never]: never };
-    Functions: { [_ in never]: never };
+    Functions: {
+      save_building: { Args: { p_building_id: string | null; p_data: Json }; Returns: string };
+      create_listing_draft: { Args: { p_unit_id: string }; Returns: string };
+      submit_listing: { Args: { p_listing_id: string }; Returns: undefined };
+      can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
+    };
     Enums: {
       app_locale: AppLocale;
       app_mode: AppMode;
@@ -54,5 +244,6 @@ export type Database = {
   };
 };
 
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Profile = ProfileRow;
 export type ProfilePrivate = Database["public"]["Tables"]["profile_private"]["Row"];
+export type Area = Database["public"]["Tables"]["areas"]["Row"];

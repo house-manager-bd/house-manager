@@ -35,8 +35,8 @@ const MENUS: Record<AppMode, Item[]> = {
   ],
   host: [
     { key: "overview", icon: LayoutDashboard, href: "/dashboard" },
-    { key: "myProperties", icon: Building2, href: null }, // F2
-    { key: "myAds", icon: Megaphone, href: null }, // F2
+    { key: "myProperties", icon: Building2, href: "/dashboard/properties" },
+    { key: "myAds", icon: Megaphone, href: "/dashboard/ads" },
     { key: "requestsInbox", icon: Inbox, href: null }, // F6
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
@@ -55,7 +55,8 @@ export function DashboardNav({ mode }: { mode: AppMode }) {
       </p>
       <ul className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
         {MENUS[mode].map(({ key, icon: Icon, href }) => {
-          const active = href !== null && pathname === href;
+          const active =
+            href !== null && (pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")));
           const content = (
             <>
               <Icon className="size-4 shrink-0" aria-hidden />
