@@ -13,7 +13,7 @@ Next.js 16 (App Router, TypeScript), Tailwind CSS 4, shadcn/ui style components,
 
 ## Run it locally
 
-You need Node.js 24 LTS and the dev Supabase project's URL and publishable key (ask Sifat).
+You need Node.js 24 LTS (it comes with npm 11; check with `node -v` and `npm -v`) and the dev Supabase project's URL and publishable key (ask Sifat).
 
 ```bash
 git clone https://github.com/house-manager-bd/house-manager.git
