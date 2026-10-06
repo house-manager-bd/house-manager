@@ -10,3 +10,4 @@
 - Never put the Supabase secret key, database password or any other secret in the repo.
 - Middleware is called `proxy` in Next.js 16 (`src/proxy.ts`). Request APIs (`params`, `cookies()`, `headers()`) are async.
 - Every change comes with test steps (see `docs/testing/`).
+- Use Node.js 24 with its npm 11 (the team's laptops and Vercel). npm 10 writes package-lock.json differently, which shows up as a changed file after every install.
