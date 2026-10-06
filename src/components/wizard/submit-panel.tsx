@@ -24,7 +24,7 @@ export function SubmitPanel({ listingId, canSubmit }: { listingId: string; canSu
         router.refresh();
         return;
       }
-      router.push("/dashboard/ads?published=1");
+      router.push(`/ads/${listingId}?published=1`);
     });
   }
 
@@ -43,7 +43,7 @@ export function SubmitPanel({ listingId, canSubmit }: { listingId: string; canSu
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="ghost">
-            <Link href={`/post/${listingId}?step=5`}>{t("back")}</Link>
+            <Link href={`/post/${listingId}?step=6`}>{t("back")}</Link>
           </Button>
           <Button variant="ghost" onClick={remove} disabled={pending} className="text-destructive hover:text-destructive">
             <Trash2 aria-hidden />

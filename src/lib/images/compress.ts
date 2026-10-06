@@ -1,6 +1,6 @@
 /**
  * Resizes an image in the browser and converts it to WebP before upload.
- * F1 uses it for avatars (square crop, 400px). F3 reuses it for listing
+ * F1 uses it for avatars (square crop, 400px). F3 uses it for listing
  * photos (longest side 1600px, about 250 KB).
  */
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -13,11 +13,16 @@ type Options = {
   squareCrop?: boolean;
 };
 
-export async function compressImage(
+export type CompressedImage = { blob: Blob; width: number; height: number };
+
+/** Like compressImage, but also returns the final width and height. */
+export async function compressImageWithSize(
   file: File,
   { maxSize, quality = 0.82, squareCrop = false }: Options,
-): Promise<Blob> {
-  const bitmap = await createImageBitmap(file);
+): Promise<CompressedImage> {
+  // "from-image" applies the phone camera's rotation, so portrait photos
+  // are not saved sideways.
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
   try {
     let sx = 0;
     let sy = 0;
@@ -51,8 +56,18 @@ export async function compressImage(
     let blob = await encode("image/webp");
     if (!blob || blob.type !== "image/webp") blob = await encode("image/jpeg");
     if (!blob) throw new Error("Could not encode image");
-    return blob;
+    return { blob, width, height };
   } finally {
     bitmap.close();
   }
+}
+
+export async function compressImage(file: File, options: Options): Promise<Blob> {
+  return (await compressImageWithSize(file, options)).blob;
+}
+
+/** SHA-256 of the original file as hex, used to spot the same photo twice. */
+export async function sha256Hex(file: Blob): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }

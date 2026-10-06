@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Building2, Megaphone, Plus } from "lucide-react";
+import { Building2, ImageOff, Megaphone, Plus } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyListings } from "@/lib/data/listings";
 import { formatDate, formatTaka } from "@/lib/format";
+import { MIN_PHOTOS, photoUrl } from "@/lib/photos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,21 +67,36 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
           {ads.map((ad) => (
             <li key={ad.id}>
               <Card className="gap-3 py-5">
-                <CardHeader className="gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge
-                      variant={ad.status === "active" ? "success" : ad.status === "draft" ? "warning" : "muted"}
-                    >
-                      {tEnum(`listingStatus.${ad.status}`)}
-                    </Badge>
-                    <Badge variant="outline">{tEnum(`listingType.${ad.listing_type}`)}</Badge>
+                <div className="flex gap-4 px-6">
+                  <div className="hidden aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-md border bg-muted sm:block">
+                    {ad.coverPath ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoUrl(ad.coverPath)} alt="" className="size-full object-cover" loading="lazy" />
+                    ) : (
+                      <span className="grid size-full place-items-center text-muted-foreground">
+                        <ImageOff className="size-5" aria-hidden />
+                      </span>
+                    )}
                   </div>
-                  <CardTitle className="text-base sm:text-lg">{ad.title ?? t("untitled")}</CardTitle>
-                  <CardDescription className="flex items-center gap-1">
-                    <Building2 className="size-3.5 shrink-0" aria-hidden />
-                    {ad.buildingName} · {ad.unit?.label}
-                  </CardDescription>
-                </CardHeader>
+                  <CardHeader className="flex-1 gap-2 px-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant={ad.status === "active" ? "success" : ad.status === "draft" ? "warning" : "muted"}
+                      >
+                        {tEnum(`listingStatus.${ad.status}`)}
+                      </Badge>
+                      <Badge variant="outline">{tEnum(`listingType.${ad.listing_type}`)}</Badge>
+                    </div>
+                    <CardTitle className="text-base sm:text-lg">{ad.title ?? t("untitled")}</CardTitle>
+                    <CardDescription className="flex items-center gap-1">
+                      <Building2 className="size-3.5 shrink-0" aria-hidden />
+                      {ad.buildingName} · {ad.unit?.label}
+                    </CardDescription>
+                    {ad.status === "draft" && ad.photoCount < MIN_PHOTOS && (
+                      <p className="text-xs text-amber-800">{t("photosNeeded", { count: ad.photoCount, min: MIN_PHOTOS })}</p>
+                    )}
+                  </CardHeader>
+                </div>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-col text-sm">
                     {ad.monthly_rent !== null && (
@@ -94,11 +110,22 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                         : t("updated", { date: formatDate(ad.updated_at, locale) })}
                     </span>
                   </div>
-                  {ad.status === "draft" && (
-                    <Button asChild size="sm">
-                      <Link href={`/post/${ad.id}`}>{t("continue")}</Link>
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {ad.status === "draft" && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ads/${ad.id}`}>{t("preview")}</Link>
+                      </Button>
+                    )}
+                    {ad.status === "draft" ? (
+                      <Button asChild size="sm">
+                        <Link href={`/post/${ad.id}`}>{t("continue")}</Link>
+                      </Button>
+                    ) : (
+                      <Button asChild size="sm" variant={ad.status === "active" ? "default" : "outline"}>
+                        <Link href={`/ads/${ad.id}`}>{t("view")}</Link>
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </li>
