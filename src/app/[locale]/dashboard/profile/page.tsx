@@ -14,12 +14,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ProfilePage({ params }: PageProps<"/[locale]/dashboard/profile">) {
   const { locale } = await params;
   const t = await getTranslations("Profile");
-  const user = await getCurrentUser();
-  const profile = await getCurrentProfile();
-  const privateProfile = await getCurrentPrivateProfile();
+  // Run the three lookups at the same time instead of one after another.
+  const [user, profile, privateProfile] = await Promise.all([
+    getCurrentUser(),
+    getCurrentProfile(),
+    getCurrentPrivateProfile(),
+  ]);
   if (!user || !profile?.default_mode) return null; // The layout redirects first.
 
-  const signedInWithGoogle = user.app_metadata?.provider === "google";
+  const signedInWithGoogle = user.provider === "google";
 
   return (
     <div className="flex flex-col gap-6">
@@ -37,7 +40,7 @@ export default async function ProfilePage({ params }: PageProps<"/[locale]/dashb
             userId={user.id}
             avatarUrl={profile.avatar_url}
             fullName={profile.full_name}
-            email={user.email ?? ""}
+            email={user.email}
           />
         </CardContent>
       </Card>
@@ -51,7 +54,7 @@ export default async function ProfilePage({ params }: PageProps<"/[locale]/dashb
         </CardHeader>
         <CardContent>
           <ProfileForm
-            email={user.email ?? ""}
+            email={user.email}
             defaultValues={{
               fullName: profile.full_name,
               phone: formatBdPhoneLocal(privateProfile?.phone),

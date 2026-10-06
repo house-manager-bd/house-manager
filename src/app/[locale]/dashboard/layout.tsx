@@ -9,8 +9,7 @@ export default async function DashboardLayout({
 }: LayoutProps<"/[locale]/dashboard">) {
   const { locale } = await params;
   const lang = locale as "bn" | "en";
-  const user = await getCurrentUser();
-  const profile = await getCurrentProfile();
+  const [user, profile] = await Promise.all([getCurrentUser(), getCurrentProfile()]);
 
   // The proxy already sends visitors to /login. This is a second guard.
   if (!user) return redirect({ href: "/login", locale: lang });
