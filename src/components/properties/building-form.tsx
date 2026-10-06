@@ -130,7 +130,19 @@ export function BuildingForm({
   const err = (key: keyof BuildingInput) => errors[key]?.message as string | undefined;
 
   return (
-    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+    <form
+      onSubmit={(event) => {
+        // Only the last part saves. Pressing Enter on an earlier part moves on.
+        if (part < PART_TITLES.length - 1) {
+          event.preventDefault();
+          void goNext();
+          return;
+        }
+        void onSubmit(event);
+      }}
+      noValidate
+      className="flex flex-col gap-6"
+    >
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted-foreground">
           {t("stepOf", { current: part + 1, total: PART_TITLES.length })}
@@ -321,11 +333,11 @@ export function BuildingForm({
           <span />
         )}
         {part < PART_TITLES.length - 1 ? (
-          <Button type="button" size="lg" onClick={goNext}>
+          <Button key="next" type="button" size="lg" onClick={goNext}>
             {t("next")}
           </Button>
         ) : (
-          <Button type="submit" size="lg" disabled={pending}>
+          <Button key="save" type="submit" size="lg" disabled={pending}>
             {pending ? t("saving") : t("save")}
           </Button>
         )}
