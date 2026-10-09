@@ -49,7 +49,7 @@ Pick one way per project and stick to it, so migrations are not applied twice.
 messages/            bn.json and en.json, every UI string
 src/app/[locale]/    pages (bn and en)
 src/app/auth/        auth callback (email links, Google)
-src/components/      ui/ (buttons, inputs), layout/, auth/, dashboard/, profile/
+src/components/      ui/, layout/, auth/, dashboard/, profile/, properties/, wizard/, ad/, search/
 src/i18n/            next-intl routing and navigation
 src/lib/             supabase clients, server actions, validation, helpers
 src/proxy.ts         language redirect, session refresh, protected pages
