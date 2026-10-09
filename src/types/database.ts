@@ -179,6 +179,18 @@ export type ListingEditable = Partial<
   >
 >;
 
+export type ListingPhotoRow = {
+  id: string;
+  listing_id: string;
+  storage_path: string;
+  sort_order: number;
+  is_cover: boolean;
+  width: number | null;
+  height: number | null;
+  content_hash: string | null;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -228,6 +240,8 @@ export type Database = {
         never,
         { contact_phone?: string | null; whatsapp?: string | null }
       >;
+      listing_photos: Table<ListingPhotoRow>;
+      contact_reveals: Table<{ id: string; user_id: string; listing_id: string; created_at: string }>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -235,6 +249,16 @@ export type Database = {
       create_listing_draft: { Args: { p_unit_id: string }; Returns: string };
       submit_listing: { Args: { p_listing_id: string }; Returns: undefined };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
+      add_listing_photo: {
+        Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };
+        Returns: string;
+      };
+      remove_listing_photo: { Args: { p_photo_id: string }; Returns: string };
+      reorder_listing_photos: { Args: { p_listing_id: string; p_photo_ids: string[] }; Returns: undefined };
+      reveal_contact: {
+        Args: { p_listing_id: string };
+        Returns: { contact_phone: string | null; whatsapp: string | null; remaining: number }[];
+      };
     };
     Enums: {
       app_locale: AppLocale;

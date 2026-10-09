@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { LISTING_PHOTOS_BUCKET } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/server";
 import {
   aboutStepSchema,
@@ -110,6 +111,12 @@ export async function submitListing(
 
 export async function deleteDraft(listingId: string): Promise<ActionResult> {
   const supabase = await createClient();
+  // Photo rows go with the draft (on delete cascade); the files are removed
+  // from storage after the draft is gone.
+  const { data: photos } = await supabase
+    .from("listing_photos")
+    .select("storage_path")
+    .eq("listing_id", listingId);
   const { error, count } = await supabase
     .from("listings")
     .delete({ count: "exact" })
@@ -117,6 +124,9 @@ export async function deleteDraft(listingId: string): Promise<ActionResult> {
     .eq("status", "draft");
   if (error) return { ok: false, error: dbErrorKey(error) };
   if (!count) return { ok: false, error: "notADraft" };
+  if (photos?.length) {
+    await supabase.storage.from(LISTING_PHOTOS_BUCKET).remove(photos.map((p) => p.storage_path));
+  }
   revalidatePath("/[locale]/dashboard", "layout");
   return { ok: true };
 }

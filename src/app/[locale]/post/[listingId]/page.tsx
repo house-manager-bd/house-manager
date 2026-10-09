@@ -9,11 +9,13 @@ import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { formatDate, formatTaka } from "@/lib/format";
 import { FIELD_STEP, missingFields } from "@/lib/listing-checks";
 import { formatBdPhoneLocal } from "@/lib/phone";
+import { MIN_PHOTOS, photoUrl, type ListingPhoto } from "@/lib/photos";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AboutStep } from "@/components/wizard/about-step";
 import { CostsStep } from "@/components/wizard/costs-step";
+import { PhotosStep } from "@/components/wizard/photos-step";
 import { SubmitPanel } from "@/components/wizard/submit-panel";
 import { TenantsStep } from "@/components/wizard/tenants-step";
 import { WizardProgress } from "@/components/wizard/wizard-progress";
@@ -47,11 +49,11 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
 
   const draft = await getDraftForWizard(user.id, listingId);
   if (!draft) notFound();
-  const { listing: l, contact, unit, building } = draft;
+  const { listing: l, contact, unit, building, photos } = draft;
   // Submitted ads are managed from My ads (editing live ads comes in F10).
   if (l.status !== "draft") return redirect({ href: "/dashboard/ads", locale: lang });
 
-  const step = [3, 4, 5, 6].includes(Number(stepParam)) ? (Number(stepParam) as 3 | 4 | 5 | 6) : 3;
+  const step = [3, 4, 5, 6, 7].includes(Number(stepParam)) ? (Number(stepParam) as 3 | 4 | 5 | 6 | 7) : 3;
   const area = areaLabel(tree, building.area_id, locale).split(",")[0];
   const typeName = tEnum(`unitKind.${unit.unit_kind}`);
   const suggestedTitle =
@@ -59,7 +61,7 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
       ? t("titleSuggestion", { bedrooms: unit.bedrooms, type: locale === "en" ? typeName.toLowerCase() : typeName, area })
       : t("titleSuggestionNoBeds", { type: typeName, area });
 
-  const missing = missingFields(l, contact.contact_phone, unit);
+  const missing = missingFields(l, contact.contact_phone, unit, photos.length);
   const stepTitle = t(`steps.${step}`);
 
   return (
@@ -74,8 +76,9 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
 
       <Card>
         <CardHeader>
-          <CardTitle className="hidden sm:block">{step === 6 ? t("reviewTitle") : stepTitle}</CardTitle>
-          {step === 6 && <CardDescription>{t("reviewHint")}</CardDescription>}
+          <CardTitle className="hidden sm:block">{step === 7 ? t("reviewTitle") : stepTitle}</CardTitle>
+          {step === 6 && <CardDescription>{t("photosHint", { min: MIN_PHOTOS })}</CardDescription>}
+          {step === 7 && <CardDescription>{t("reviewHint")}</CardDescription>}
         </CardHeader>
         <CardContent>
           {step === 3 && (
@@ -125,13 +128,15 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
               }}
             />
           )}
-          {step === 6 && (
+          {step === 6 && <PhotosStep listingId={l.id} userId={user.id} initialPhotos={photos} />}
+          {step === 7 && (
             <Review
               t={t}
               tEnum={tEnum}
               locale={locale}
               listingId={l.id}
               missing={missing}
+              photos={photos}
               rows={{
                 building: [
                   [t("building"), `${building.name}, ${areaLabel(tree, building.area_id, locale)}`],
@@ -203,6 +208,7 @@ function Review({
   locale,
   listingId,
   missing,
+  photos,
   rows,
 }: {
   t: Translator;
@@ -210,6 +216,7 @@ function Review({
   locale: string;
   listingId: string;
   missing: string[];
+  photos: ListingPhoto[];
   rows: { building: Row[]; ad: Row[]; costs: Row[]; tenants: Row[] };
 }) {
   const sections: { title: string; step: number | null; rows: Row[] }[] = [
@@ -237,6 +244,37 @@ function Review({
           </span>
         </Alert>
       )}
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-semibold">{t("sectionPhotos")}</h3>
+          <Link
+            href={`/post/${listingId}?step=6`}
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            <Pencil className="size-3.5" aria-hidden />
+            {t("edit")}
+          </Link>
+        </div>
+        {missing.includes("photos") && (
+          <p className="text-sm text-destructive">{t("photosMissing", { count: photos.length, min: MIN_PHOTOS })}</p>
+        )}
+        {photos.length > 0 && (
+          <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+            {photos.map((photo, index) => (
+              <li key={photo.id} className="aspect-square overflow-hidden rounded-md border bg-muted">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photoUrl(photo.storage_path)}
+                  alt={t("photoNumber", { number: index + 1 })}
+                  className="size-full object-cover"
+                  loading="lazy"
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {sections.map((section) => (
         <section key={section.title} className="flex flex-col gap-3">

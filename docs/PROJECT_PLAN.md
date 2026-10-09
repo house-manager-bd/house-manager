@@ -197,8 +197,8 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Listings (one ad for one unit)**
 - `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, created_at, updated_at.
-- `listing_private`: listing_id, contact_phone, whatsapp. Readable by logged-in members for active ads, and by the poster.
-- `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed.
+- `listing_private`: listing_id, contact_phone, whatsapp. Readable directly only by the poster and the building's managers. Other logged-in members get the numbers of a live ad through `reveal_contact`, limited to 20 ads a day (since F3).
+- `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed. The first photo (sort_order 0) is always the cover. Visible exactly when the ad is visible. Written only through `add_listing_photo`, `remove_listing_photo` and `reorder_listing_photos` (since F3).
 
 **Requests and tenancy**
 - `rental_requests`: id, listing_id, tenant_id, status (section 1.4), household_type, members_count, occupation, move_in_date, message, offer_expires_at, decline_reason, created_at, updated_at.
@@ -488,9 +488,9 @@ Each feature is small enough to build, test and deploy on its own.
 
 - [x] **F1: Foundation.** Next.js app with Tailwind, shadcn/ui and next-intl (bn and en). Header with language toggle, footer. Supabase connected. Sign up with email and password, Google sign-in, log out. Profile page (name, photo, phone, language). Sign-up question that sets the default mode, and mode-based menus with a switch. Free SMTP connected. Deployed to Vercel.
   Done when: a teammate opens the live link on a phone, switches to English, signs up with Google, and edits their profile.
-- [ ] **F2: Properties and posting an ad (text).** Location tables seeded (Bangladesh divisions and districts, Mirpur thanas and areas). Wizard: (1) pick a building or add one (name, location, pin, gas, facilities, house rules, nearby places), (2) pick a unit or add one, (3) ad type and who is posting, (4) costs with the advance warning, (5) tenant types and extra rules, (6) review. Save as draft, submit. A simple "My properties" page lists buildings and units with their status.
+- [x] **F2: Properties and posting an ad (text).** Location tables seeded (Bangladesh divisions and districts, Mirpur thanas and areas). Wizard: (1) pick a building or add one (name, location, pin, gas, facilities, house rules, nearby places), (2) pick a unit or add one, (3) ad type and who is posting, (4) costs with the advance warning, (5) tenant types and extra rules, (6) review. Save as draft, submit. A simple "My properties" page lists buildings and units with their status.
   Done when: a member adds one building with two units, posts a flat ad for one unit, starts a second ad without retyping the address, and sees the advance warning above one month.
-- [ ] **F3: Photos and ad page.** Upload 4 to 8 photos with browser compression, reorder, choose cover. Public ad detail page with gallery, approximate pin, costs table, rules. Exact address and phone reveal only for logged-in members. Basic SEO metadata and a share preview.
+- [x] **F3: Photos and ad page.** Upload 4 to 8 photos with browser compression, reorder, choose cover. Public ad detail page with gallery, approximate pin, costs table, rules. Exact address and phone reveal only for logged-in members. Basic SEO metadata and a share preview.
   Done when: a logged-out visitor sees the ad without the address, and logs in to see it.
 - [ ] **F4: Browse, search, map.** Home page, search by area or keyword, filters (rent range, type, tenant type, bedrooms, amenities, gas, available from), sort (newest, rent low to high), map view with markers inside the visible area, pagination.
   Done when: filtering "Mirpur 10, bachelor_male, gas line, under 15,000" shows only matching ads, both as a list and on the map.
@@ -533,8 +533,15 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-05 | The building form has four short parts (basics, address and pin, facilities and rules, nearby places) | Keeps each part at about six fields (U1 usability rule) | One long form |
 | 2026-10-05 | Who is posting comes from the person's link to the building (owner, caretaker, or the tenant who added it) | The same person cannot claim different roles on different ads for one building | Free choice per ad |
 | 2026-10-05 | One open ad per unit, drafts included | Stops two managers drafting the same unit, and keeps "one active ad per unit" simple | Several drafts per unit |
-| 2026-10-05 | In F2, Publish makes an ad live straight away | Photos (F3) and moderation (F5) are not built yet. F3 adds the 4 photo minimum, F5 adds the review queue | Waiting for review from F2 |
+| 2026-10-05 | In F2, Publish makes an ad live straight away | Photos (F3) and moderation (F5) are not built yet. F3 added the 4 photo minimum, F5 adds the review queue | Waiting for review from F2 |
 | 2026-10-05 | Added gas_bill to listings | Who pays for gas is one of the first questions in Dhaka ads | Leaving it to other_charges |
+| 2026-10-06 | Photos are a wizard step of their own (step 6), and the cover is always the first photo | One clear place for photos, and "make cover" is the same as moving a photo to the front | Photos inside step 3, a separate cover flag |
+| 2026-10-06 | Photo files go to `<user id>/<listing id>/` and rows are added by a database function that checks the file exists, the draft, the 8 photo limit and duplicates | A browser cannot attach someone else's file or go past the limit | Inserting rows straight from the browser |
+| 2026-10-06 | Photos can be changed only while the ad is a draft | Editing live ads belongs to F10 (edit, pause, renew) | Editing live ads now |
+| 2026-10-06 | Phone numbers through `reveal_contact`, 20 different ads per member per 24 hours; the same ad again is free | Plan FR12. In F2 any member could read every number directly, which made scraping easy | Reading `listing_private` directly |
+| 2026-10-06 | Visitors cannot read the building name (column grant) | The name is often the name on the gate or the house and road number, which would defeat the approximate pin | Showing the name to everyone |
+| 2026-10-06 | Visitors see a 300 metre circle instead of a pin | A pin looks exact even when it is moved; the circle shows that the spot is approximate | Showing the offset pin |
+| 2026-10-06 | Publishing opens the ad's own page with a "your ad is live" note | The landlord sees what tenants see and can share the link right away | Back to My ads |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.

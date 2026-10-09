@@ -56,6 +56,14 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "notADraft";
     case "listing_incomplete":
       return "listingIncomplete";
+    case "too_many_photos":
+      return "photoLimit";
+    case "duplicate_photo":
+      return "photoDuplicate";
+    case "invalid_photo":
+      return "uploadFailed";
+    case "reveal_limit":
+      return "revealLimit";
   }
   switch (error?.code) {
     case "23505":

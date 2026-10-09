@@ -3,15 +3,15 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
-const STEPS = [1, 2, 3, 4, 5, 6] as const;
+const STEPS = [1, 2, 3, 4, 5, 6, 7] as const;
 
-/** Six-step progress bar. Steps 3 to 6 are links once a draft exists. */
+/** Seven-step progress bar. Steps 3 to 7 are links once a draft exists. */
 export async function WizardProgress({ current, listingId }: { current: number; listingId?: string }) {
   const t = await getTranslations("Wizard");
   return (
     <nav aria-label={t("title")} className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">{t("stepOf", { current })}</p>
-      <ol className="grid grid-cols-6 gap-1.5">
+      <ol className="grid grid-cols-7 gap-1.5">
         {STEPS.map((step) => {
           const done = step < current;
           const active = step === current;
