@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, Building2, Megaphone, Sparkles, UserRoundPen } from "lucide-react";
+import { ArrowRight, Building2, Megaphone, Search, Sparkles, UserRoundPen } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -101,6 +101,14 @@ export default async function DashboardPage() {
               </CardTitle>
               <CardDescription>{t("nextStepsSeek")}</CardDescription>
             </CardHeader>
+            <CardContent>
+              <Button asChild className="w-fit">
+                <Link href="/ads">
+                  <Search aria-hidden />
+                  {t("searchAds")}
+                </Link>
+              </Button>
+            </CardContent>
           </Card>
         )}
         <Card>

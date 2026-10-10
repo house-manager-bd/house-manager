@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
   CalendarDays,
+  ChevronRight,
   CircleAlert,
   ExternalLink,
   Footprints,
@@ -14,9 +15,10 @@ import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { getAdPage, type AdPage } from "@/lib/data/ad";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
-import { formatDate, formatNumber, formatTaka } from "@/lib/format";
+import { formatDate, formatNumber, formatTaka, placeName } from "@/lib/format";
 import { photoUrl } from "@/lib/photos";
 import { ADVANCE_WARNING_MONTHS } from "@/lib/validation/listing";
+import { EMPTY_FILTERS, searchHref } from "@/lib/validation/search";
 import { AdMapLazy } from "@/components/ad/ad-map-lazy";
 import { Gallery } from "@/components/ad/gallery";
 import { RevealPhone } from "@/components/ad/reveal-phone";
@@ -169,6 +171,26 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-6 sm:pt-8 lg:pb-8">
+      <nav aria-label={t("breadcrumb")} className="-mb-2 text-sm text-muted-foreground">
+        <ol className="flex flex-wrap items-center gap-1.5">
+          <li>
+            <Link href="/ads" className="hover:text-foreground hover:underline">
+              {t("allAds")}
+            </Link>
+          </li>
+          <li aria-hidden>
+            <ChevronRight className="size-3.5" />
+          </li>
+          <li>
+            <Link
+              href={searchHref(EMPTY_FILTERS, { place: { kind: "area", id: building.area_id } })}
+              className="hover:text-foreground hover:underline"
+            >
+              {t("moreInArea", { area: placeName(tree.areas.find((a) => a.id === building.area_id), locale) })}
+            </Link>
+          </li>
+        </ol>
+      </nav>
       {query.published === "1" && viewer?.isPoster && (
         <FormSuccessStatic title={t("publishedTitle")} body={t("publishedBody")} />
       )}
