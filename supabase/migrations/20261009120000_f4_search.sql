@@ -51,11 +51,12 @@ $$;
 -- saved instead of on every search (a 2,000 character description made
 -- keyword search several times slower). Only drafts are edited, through the
 -- wizard; the database fills this column by itself and nobody can write it.
+-- "if not exists" makes the whole migration safe to run twice.
 -- If search_compact() ever changes, refresh it with:
 --   update public.listings set title = title;
 
 alter table public.listings
-  add column search_text text
+  add column if not exists search_text text
   generated always as (
     public.search_compact(coalesce(title, '') || ' ' || coalesce(description, ''))
   ) stored;
