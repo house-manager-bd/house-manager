@@ -95,3 +95,15 @@ export const getAdPage = cache(async (listingId: string): Promise<AdPage | null>
     viewer: user ? { id: user.id, isPoster: user.id === listing.posted_by } : null,
   };
 });
+
+/** The signed-in member's own report on this ad, if any (RLS shows only their own). F5. */
+export async function getMyReport(listingId: string, userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("reports")
+    .select("id, created_at")
+    .eq("listing_id", listingId)
+    .eq("reporter_id", userId)
+    .maybeSingle();
+  return data;
+}

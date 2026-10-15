@@ -278,9 +278,10 @@ By default, the confirmation link only works in the same browser that signed up.
 
 `{{ .RedirectTo }}` is the callback address the app sends (for example `http://localhost:3000/auth/callback?next=/bn/dashboard`). It already contains a `?`, so the template adds the rest with `&`. This only works when that address matches the Redirect URLs list (3.4 and 8.3). Otherwise Supabase falls back to the Site URL and the link breaks. The app works with both the default and these templates.
 
-### 8.5 Make yourself an admin (for F5 later)
+### 8.5 Make yourself an admin (F5)
 SQL Editor: `update public.profiles set is_admin = true where id = (select id from auth.users where email = 'your@email.com');`
 Repeat for each team member after they sign up. Nobody can do this from the app.
+Admins see **Admin** in the avatar menu and the dashboard menu, which opens `/admin` (review queue, reports, members). Make at least two admins: nobody can approve their own ad. To remove an admin, run the same query with `false`.
 
 ---
 

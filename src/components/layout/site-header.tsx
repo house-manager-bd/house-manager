@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
+import { getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "./language-switcher";
 import { Logo } from "./logo";
@@ -29,6 +29,7 @@ export async function SiteHeader() {
               email={user.email}
               avatarUrl={profile?.avatar_url ?? null}
               mode={profile?.default_mode ?? null}
+              isAdmin={isAdminProfile(profile)}
             />
           ) : (
             <>
