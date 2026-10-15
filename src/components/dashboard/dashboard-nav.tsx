@@ -28,7 +28,7 @@ type Item = {
 const MENUS: Record<AppMode, Item[]> = {
   seek: [
     { key: "overview", icon: LayoutDashboard, href: "/dashboard" },
-    { key: "searchAds", icon: Search, href: null }, // F4
+    { key: "searchAds", icon: Search, href: "/ads" },
     { key: "myRequests", icon: Send, href: null }, // F6
     { key: "savedAds", icon: Heart, href: null }, // F10
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },

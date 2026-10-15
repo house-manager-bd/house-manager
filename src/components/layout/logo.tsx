@@ -12,7 +12,7 @@ export function Logo() {
       <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
         <House className="size-4.5" aria-hidden />
       </span>
-      <span className="text-base sm:text-lg">{t("appName")}</span>
+      <span className="text-base whitespace-nowrap sm:text-lg">{t("appName")}</span>
     </Link>
   );
 }

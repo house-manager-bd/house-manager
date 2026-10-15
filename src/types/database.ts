@@ -150,6 +150,8 @@ export type ListingRow = {
   is_featured: boolean;
   featured_until: string | null;
   view_count: number;
+  /** Title and description in compact form for keyword search (F4). Filled by the database. */
+  search_text: string;
   created_at: string;
   updated_at: string;
 };
@@ -189,6 +191,33 @@ export type ListingPhotoRow = {
   height: number | null;
   content_hash: string | null;
   created_at: string;
+};
+
+/** One row of public.search_listings(): only what a visitor may see. */
+export type SearchListingRow = {
+  id: string;
+  title: string | null;
+  listing_type: ListingType;
+  tenant_types: string[];
+  monthly_rent: number | null;
+  rent_negotiable: boolean;
+  open_slots: number;
+  available_from: string | null;
+  published_at: string | null;
+  area_id: number;
+  landmark: string | null;
+  approx_lat: number;
+  approx_lng: number;
+  gas: GasType;
+  amenities: string[];
+  unit_kind: UnitKind;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  size_sqft: number | null;
+  furnishing: Furnishing;
+  cover_path: string | null;
+  photo_count: number;
+  total_count: number;
 };
 
 export type Database = {
@@ -258,6 +287,25 @@ export type Database = {
       reveal_contact: {
         Args: { p_listing_id: string };
         Returns: { contact_phone: string | null; whatsapp: string | null; remaining: number }[];
+      };
+      search_listings: {
+        Args: {
+          p_q?: string | null;
+          p_area_ids?: number[] | null;
+          p_types?: string[] | null;
+          p_tenant_types?: string[] | null;
+          p_rent_min?: number | null;
+          p_rent_max?: number | null;
+          p_bedrooms_min?: number | null;
+          p_amenities?: string[] | null;
+          p_gas?: string | null;
+          p_available_by?: string | null;
+          p_bounds?: number[] | null;
+          p_sort?: string;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: SearchListingRow[];
       };
     };
     Enums: {

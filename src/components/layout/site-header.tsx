@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -15,6 +16,12 @@ export async function SiteHeader() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:h-16">
         <Logo />
         <nav className="flex items-center gap-1 sm:gap-2">
+          <Button asChild variant="ghost" size="sm" className="px-2 sm:px-3">
+            <Link href="/ads" aria-label={t("findHome")}>
+              <Search aria-hidden />
+              <span className="hidden sm:inline">{t("findHome")}</span>
+            </Link>
+          </Button>
           <LanguageSwitcher signedIn={!!user} />
           {user ? (
             <UserMenu

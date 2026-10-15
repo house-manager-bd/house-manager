@@ -196,7 +196,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 - `nearby_places`: id, building_id, kind (metro, bus_stop, market, school, hospital, mosque, park), name, walk_minutes. Entered once per building, shown on every ad in it.
 
 **Listings (one ad for one unit)**
-- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, created_at, updated_at.
+- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, search_text (title and description in compact form for keyword search, filled by the database, since F4), created_at, updated_at.
 - `listing_private`: listing_id, contact_phone, whatsapp. Readable directly only by the poster and the building's managers. Other logged-in members get the numbers of a live ad through `reveal_contact`, limited to 20 ads a day (since F3).
 - `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed. The first photo (sort_order 0) is always the cover. Visible exactly when the ad is visible. Written only through `add_listing_photo`, `remove_listing_photo` and `reorder_listing_photos` (since F3).
 
@@ -216,9 +216,9 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Approximate pin:** when a building is added, the exact pin is rounded and moved by a random offset of up to about 250 metres. The offset is saved once, so the public pin never moves. If it changed on every page load, someone could average many loads and find the real spot.
 
-**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing`, `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request`, `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`. A scheduled job expires old requests, offers and ads.
+**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing`, `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request`, `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads.
 
-**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, trigram on title and area names, rental_requests (listing_id, status), messages (request_id, created_at).
+**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status), messages (request_id, created_at).
 
 ## 5. ER diagram
 
@@ -328,8 +328,8 @@ erDiagram
 
 ```mermaid
 flowchart TD
-    HOME["Home: search bar, featured and latest ads"] --> SEARCH["Search results with filters and map: /listings"]
-    SEARCH --> DETAIL["Ad detail: /listings/id"]
+    HOME["Home: search bar, featured and latest ads"] --> SEARCH["Search results with filters and map: /ads"]
+    SEARCH --> DETAIL["Ad detail: /ads/id"]
     HOME --> RIGHTS["Know your rights: /rights"]
     HOME --> LOGIN["Log in and sign up"]
     DETAIL -->|"logged in"| REQ["Send request"]
@@ -492,7 +492,7 @@ Each feature is small enough to build, test and deploy on its own.
   Done when: a member adds one building with two units, posts a flat ad for one unit, starts a second ad without retyping the address, and sees the advance warning above one month.
 - [x] **F3: Photos and ad page.** Upload 4 to 8 photos with browser compression, reorder, choose cover. Public ad detail page with gallery, approximate pin, costs table, rules. Exact address and phone reveal only for logged-in members. Basic SEO metadata and a share preview.
   Done when: a logged-out visitor sees the ad without the address, and logs in to see it.
-- [ ] **F4: Browse, search, map.** Home page, search by area or keyword, filters (rent range, type, tenant type, bedrooms, amenities, gas, available from), sort (newest, rent low to high), map view with markers inside the visible area, pagination.
+- [x] **F4: Browse, search, map.** Home page, search by area or keyword, filters (rent range, type, tenant type, bedrooms, amenities, gas, available from), sort (newest, rent low to high), map view with markers inside the visible area, pagination.
   Done when: filtering "Mirpur 10, bachelor_male, gas line, under 15,000" shows only matching ads, both as a list and on the map.
 - [ ] **F5: Moderation.** Auto-checks on submit, trust levels, first ad to review queue, report button, auto-hide at 3 reports, admin pages (queue, reports, users).
   Depends on F2 and F3.
@@ -542,6 +542,14 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-06 | Visitors cannot read the building name (column grant) | The name is often the name on the gate or the house and road number, which would defeat the approximate pin | Showing the name to everyone |
 | 2026-10-06 | Visitors see a 300 metre circle instead of a pin | A pin looks exact even when it is moved; the circle shows that the spot is approximate | Showing the offset pin |
 | 2026-10-06 | Publishing opens the ad's own page with a "your ad is live" note | The landlord sees what tenants see and can share the link right away | Back to My ads |
+| 2026-10-09 | Search is one read-only database function, `search_listings`, that returns only live ads and only columns visitors may see | Every filter, the keyword, sort, page and map bounds in one round trip, and privacy is fixed in one place | Several PostgREST queries joined in the app, a public view |
+| 2026-10-09 | Search page at `/ads` (ad pages stay at `/ads/id`), every filter in the URL | Shareable and bookmarkable searches, Google can index area pages, and the forms work without JavaScript | `/listings`, filters kept only in page state |
+| 2026-10-09 | Keyword search never looks at the building name or address | Visitors cannot read those (F3), so a search must not reveal them either | Searching every text column |
+| 2026-10-09 | `listings.search_text` stores the title and description in compact form | Working it out on every search made a three word search take seconds with 5,000 long ads | Normalising text in each query, a trigram index |
+| 2026-10-09 | Typing an exact area name ("Mirpur 10", "মিরপুর ১০") as the keyword switches to the area filter | "10" alone would also match Mirpur 1, 11 and 12 | Plain keyword matching |
+| 2026-10-09 | Map markers sit on the public (approximate) pin, one per building with the cheapest rent, with a note and a zoom limit | Same information as the ad page's circle, and ads in one building share one pin | A circle per ad, exact pins |
+| 2026-10-09 | The map loads up to 300 matching ads first, then asks for the ads inside the visible area after each pan or zoom | Plan F4 ("markers inside the visible area"), and the first view needs no extra request | Loading every ad at once, a "search this area" button |
+| 2026-10-09 | Filters apply with a button (sidebar on computers, bottom sheet on phones); sort applies at once | A phone does not reload after every tap | Applying every change at once |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
