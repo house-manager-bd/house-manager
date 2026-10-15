@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRight, LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { ArrowLeftRight, LayoutDashboard, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -22,6 +22,7 @@ type Props = {
   email: string;
   avatarUrl: string | null;
   mode: AppMode | null;
+  isAdmin?: boolean;
 };
 
 export function initials(name: string, email: string) {
@@ -31,7 +32,7 @@ export function initials(name: string, email: string) {
   return letters.toUpperCase();
 }
 
-export function UserMenu({ fullName, email, avatarUrl, mode }: Props) {
+export function UserMenu({ fullName, email, avatarUrl, mode, isAdmin = false }: Props) {
   const t = useTranslations("Nav");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -78,6 +79,14 @@ export function UserMenu({ fullName, email, avatarUrl, mode }: Props) {
             {t("profile")}
           </Link>
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin">
+              <ShieldCheck aria-hidden />
+              {t("admin")}
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem disabled={pending} onSelect={switchMode}>
           <ArrowLeftRight aria-hidden />
           {nextMode === "host" ? t("switchToHost") : t("switchToSeek")}

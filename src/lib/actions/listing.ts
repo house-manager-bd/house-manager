@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { LISTING_PHOTOS_BUCKET } from "@/lib/photos";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -90,11 +91,16 @@ export async function saveTenantsStep(listingId: string, input: TenantsStepInput
   return { ok: true };
 }
 
+/**
+ * Sends a finished draft in. The database runs the automatic checks (F5):
+ * the ad goes live straight away ("active"), or waits for an admin
+ * ("pending_review") when the poster is new or a check flagged it.
+ */
 export async function submitListing(
   listingId: string,
-): Promise<ActionResult<{ missing: string[] }>> {
+): Promise<ActionResult<{ status: "active" | "pending_review" }>> {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("submit_listing", { p_listing_id: listingId });
+  const { data, error } = await supabase.rpc("submit_listing", { p_listing_id: listingId });
   if (error) {
     if (error.message === "listing_incomplete") {
       return {
@@ -106,7 +112,21 @@ export async function submitListing(
     return { ok: false, error: dbErrorKey(error) };
   }
   revalidatePath("/[locale]/dashboard", "layout");
-  return { ok: true, data: { missing: [] } };
+  return { ok: true, data: { status: data === "active" ? "active" : "pending_review" } };
+}
+
+/**
+ * Takes an ad that waits for review, or a rejected ad, back to a draft so
+ * the poster can change it. A rejected ad goes to review again when it is
+ * sent in.
+ */
+export async function reopenListing(listingId: string): Promise<ActionResult> {
+  if (!z.uuid().safeParse(listingId).success) return { ok: false, error: "generic" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reopen_listing", { p_listing_id: listingId });
+  if (error) return { ok: false, error: dbErrorKey(error) };
+  revalidatePath("/[locale]/dashboard", "layout");
+  return { ok: true };
 }
 
 export async function deleteDraft(listingId: string): Promise<ActionResult> {

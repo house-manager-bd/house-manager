@@ -8,14 +8,20 @@ import { dbErrorKey, type ActionResult } from "./result";
 /**
  * Records a photo the browser has just uploaded to storage. The database
  * checks the poster, the draft status, the 8 photo limit, that the file
- * exists in the poster's folder, and duplicates within the ad.
+ * exists in the poster's folder, the minimum size (F5), and duplicates
+ * within the ad.
  */
 export async function addListingPhoto(input: AddPhotoInput): Promise<ActionResult<{ id: string }>> {
+  const supabase = await createClient();
   const parsed = addPhotoSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "uploadFailed" };
+  if (!parsed.success) {
+    // Storage RLS only lets a member remove files in their own folder.
+    if (typeof input.path === "string") await supabase.storage.from(LISTING_PHOTOS_BUCKET).remove([input.path]);
+    const tooSmall = parsed.error.issues.some((i) => i.message === "photoTooSmall");
+    return { ok: false, error: tooSmall ? "photoTooSmall" : "uploadFailed" };
+  }
   const v = parsed.data;
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc("add_listing_photo", {
     p_listing_id: v.listingId,
     p_path: v.path,

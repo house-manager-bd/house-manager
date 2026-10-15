@@ -108,8 +108,13 @@ export function AboutStep({
         <Input {...fieldAria("title", err("title"))} placeholder={t("adTitlePlaceholder")} {...form.register("title")} />
       </FormField>
 
-      <FormField id="description" label={t("description")} error={err("description")}>
-        <Textarea {...fieldAria("description", err("description"))} rows={5} placeholder={t("descriptionPlaceholder")} {...form.register("description")} />
+      <FormField id="description" label={t("description")} error={err("description")} hint={t("descriptionHint")}>
+        <Textarea
+          {...fieldAria("description", err("description"), t("descriptionHint"))}
+          rows={5}
+          placeholder={t("descriptionPlaceholder")}
+          {...form.register("description")}
+        />
       </FormField>
 
       <FormField id="availableFrom" label={t("availableFrom")} error={err("availableFrom")}>
