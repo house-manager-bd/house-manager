@@ -3,7 +3,7 @@
 
 /* Design system from PROJECT_STATUS.md:
    primary teal #0F766E, accent amber #F59E0B, neutral slate, danger red #DC2626.
-   Fonts: Hind Siliguri (Bangla), Inter (English). Mobile-first from 360px. */
+   Fonts: Noto Sans Bengali (Bangla), Inter (English). Mobile-first from 360px. */
 
 :root {
   --radius: 0.625rem;
@@ -34,7 +34,7 @@
 }
 
 @theme inline {
-  --font-bangla: "Hind Siliguri", "Noto Sans Bengali", sans-serif;
+  --font-bangla: "Noto Sans Bengali Variable", "Noto Sans Bengali", sans-serif;
   --font-latin: "Inter Variable", "Inter", system-ui, sans-serif;
 
   --color-background: var(--background);
@@ -72,8 +72,8 @@
     -webkit-text-size-adjust: 100%;
   }
 
-  /* Bangla pages: Hind Siliguri first. English pages: Inter first, with
-     Hind Siliguri as the fallback for Bangla names typed by users. */
+  /* Bangla pages: Noto Sans Bengali first. English pages: Inter first, with
+     Noto Sans Bengali as the fallback for Bangla names typed by users. */
   html[lang="bn"] body {
     font-family: var(--font-bangla);
     line-height: 1.65;
