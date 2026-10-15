@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 import type { AppMode } from "@/types/database";
@@ -47,13 +48,28 @@ export function DashboardNav({ mode }: { mode: AppMode }) {
   const tCommon = useTranslations("Common");
   const tNav = useTranslations("Nav");
   const pathname = usePathname();
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // On phones the menu is one row that scrolls sideways. Bring the current
+  // page's item into view, so "My ads" is not hidden off the right edge.
+  useEffect(() => {
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!list || !active || list.scrollWidth <= list.clientWidth) return;
+    const listBox = list.getBoundingClientRect();
+    const itemBox = active.getBoundingClientRect();
+    list.scrollLeft += itemBox.left - listBox.left - (listBox.width - itemBox.width) / 2;
+  }, [pathname]);
 
   return (
     <nav aria-label={tNav("dashboard")} className="flex flex-col gap-3">
       <p className="hidden px-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase lg:block">
         {mode === "host" ? tNav("modeHost") : tNav("modeSeek")}
       </p>
-      <ul className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0">
+      <ul
+        ref={listRef}
+        className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
+      >
         {MENUS[mode].map(({ key, icon: Icon, href }) => {
           const active =
             href !== null && (pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")));

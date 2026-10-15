@@ -28,8 +28,10 @@ export default async function DashboardLayout({
   if (!profile.default_mode) return redirect({ href: "/onboarding", locale: lang });
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[220px_1fr] lg:py-10">
-      <aside className="lg:sticky lg:top-24 lg:self-start">
+    // grid-cols-1 is minmax(0, 1fr): without it the single phone column grew
+    // to the width of the menu strip (about 700px) and every page scrolled sideways.
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:py-10">
+      <aside className="min-w-0 lg:sticky lg:top-24 lg:self-start">
         <DashboardNav mode={profile.default_mode} />
       </aside>
       <div className="min-w-0">{children}</div>

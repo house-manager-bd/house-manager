@@ -8,10 +8,9 @@ import { SiteFooter } from "@/components/layout/site-footer";
 
 // Self-hosted fonts (no request to Google Fonts). The browser downloads only
 // the subsets a page actually uses.
-import "@fontsource/hind-siliguri/400.css";
-import "@fontsource/hind-siliguri/500.css";
-import "@fontsource/hind-siliguri/600.css";
-import "@fontsource/hind-siliguri/700.css";
+// Noto Sans Bengali: one variable file covers every weight, and its digits
+// are easy to tell apart (Hind Siliguri's ১ looked like a comma).
+import "@fontsource-variable/noto-sans-bengali";
 import "@fontsource-variable/inter";
 import "../globals.css";
 
