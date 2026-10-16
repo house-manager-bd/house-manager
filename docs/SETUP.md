@@ -135,7 +135,9 @@ A **public repo inside a free GitHub organization** avoids both, and gives all f
 2. When asked, install the **Vercel GitHub app**. Choose the `house-manager-bd` organization and select **Only select repositories**, then `house-manager`.
 3. Stop here. You will import the project during F1, when there is code to deploy.
 
-Only you need a Vercel account. Every pull request will automatically get a preview link that the whole team can open.
+Only you need a Vercel account. Every pull request will automatically get a preview link.
+
+New Vercel projects protect preview links with a Vercel login, so only your own Vercel account can open them (a teammate, or a second browser window used for another test account, sees "Log in to Vercel" or "You Need Access"). Turn this off once, after the project is imported in F1: Vercel, project **house-manager**, **Settings**, **Deployment Protection**, switch off **Vercel Authentication** (Require Log In), **Save**. This exposes nothing new: previews use the same Supabase database as the live site, which is public anyway, and admin pages check the account in the database. (Done for house-manager on 2026-10-16.)
 
 ---
 
