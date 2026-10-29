@@ -8,6 +8,7 @@ import {
   Megaphone,
   Search,
   Send,
+  ShieldCheck,
   UserRound,
   type LucideIcon,
 } from "lucide-react";
@@ -19,7 +20,16 @@ import type { AppMode } from "@/types/database";
 import { ModeSwitchButton } from "./mode-switch-button";
 
 type Item = {
-  key: "overview" | "searchAds" | "myRequests" | "savedAds" | "myProperties" | "myAds" | "requestsInbox" | "profile";
+  key:
+    | "overview"
+    | "searchAds"
+    | "myRequests"
+    | "savedAds"
+    | "myProperties"
+    | "myAds"
+    | "requestsInbox"
+    | "profile"
+    | "admin";
   icon: LucideIcon;
   /** Null until the feature that owns the page is built. */
   href: string | null;
@@ -43,7 +53,10 @@ const MENUS: Record<AppMode, Item[]> = {
   ],
 };
 
-export function DashboardNav({ mode }: { mode: AppMode }) {
+// Team admins also get a link to the admin pages (F5), in both modes.
+const ADMIN_ITEM: Item = { key: "admin", icon: ShieldCheck, href: "/admin" };
+
+export function DashboardNav({ mode, isAdmin = false }: { mode: AppMode; isAdmin?: boolean }) {
   const t = useTranslations("Dashboard");
   const tCommon = useTranslations("Common");
   const tNav = useTranslations("Nav");
@@ -70,7 +83,7 @@ export function DashboardNav({ mode }: { mode: AppMode }) {
         ref={listRef}
         className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
       >
-        {MENUS[mode].map(({ key, icon: Icon, href }) => {
+        {(isAdmin ? [...MENUS[mode], ADMIN_ITEM] : MENUS[mode]).map(({ key, icon: Icon, href }) => {
           const active =
             href !== null && (pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")));
           const content = (

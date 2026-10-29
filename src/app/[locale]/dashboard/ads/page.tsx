@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormSuccessStatic } from "@/components/ui/success-note";
+import { ReopenButton } from "@/components/ad/reopen-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Ads");
@@ -81,7 +82,14 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                   <CardHeader className="flex-1 gap-2 px-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge
-                        variant={ad.status === "active" ? "success" : ad.status === "draft" ? "warning" : "muted"}
+                        variant={
+                          ad.status === "active"
+                            ? "success"
+                            : ad.status === "draft" || ad.status === "pending_review"
+                              ? "warning"
+                              : "muted"
+                        }
+                        className={ad.status === "rejected" ? "bg-destructive/10 text-destructive" : undefined}
                       >
                         {tEnum(`listingStatus.${ad.status}`)}
                       </Badge>
@@ -95,6 +103,13 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                     {ad.status === "draft" && ad.photoCount < MIN_PHOTOS && (
                       <p className="text-xs text-amber-800">{t("photosNeeded", { count: ad.photoCount, min: MIN_PHOTOS })}</p>
                     )}
+                    {ad.status === "pending_review" && <p className="text-sm text-muted-foreground">{t("pendingNote")}</p>}
+                    {ad.status === "rejected" && ad.rejection_reason && (
+                      <p className="text-sm break-words whitespace-pre-line text-destructive">
+                        {t("rejectedNote", { reason: ad.rejection_reason })}
+                      </p>
+                    )}
+                    {ad.status === "hidden" && <p className="text-sm text-muted-foreground">{t("hiddenNote")}</p>}
                   </CardHeader>
                 </div>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -110,7 +125,7 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                         : t("updated", { date: formatDate(ad.updated_at, locale) })}
                     </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap items-start gap-2">
                     {ad.status === "draft" && (
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/ads/${ad.id}`}>{t("preview")}</Link>
@@ -124,6 +139,9 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                       <Button asChild size="sm" variant={ad.status === "active" ? "default" : "outline"}>
                         <Link href={`/ads/${ad.id}`}>{t("view")}</Link>
                       </Button>
+                    )}
+                    {(ad.status === "pending_review" || ad.status === "rejected") && (
+                      <ReopenButton listingId={ad.id} status={ad.status} />
                     )}
                   </div>
                 </CardContent>

@@ -10,6 +10,19 @@ export const LISTING_PHOTOS_BUCKET = "listing-photos";
 export const PHOTO_MAX_SIDE = 1600;
 export const PHOTO_QUALITY = 0.8;
 
+/**
+ * F5: photos whose shorter side is under 600 px look blurry on the ad page
+ * and on search cards. A photo big enough to be shrunk to 1600 px is always
+ * fine (a wide panorama, for example). add_listing_photo() in the database
+ * checks the same rule.
+ */
+export const PHOTO_MIN_SHORT_SIDE = 600;
+
+/** Checks the size after compression (the size that is saved). */
+export function isPhotoTooSmall(width: number, height: number) {
+  return Math.min(width, height) < PHOTO_MIN_SHORT_SIDE && Math.max(width, height) < PHOTO_MAX_SIDE;
+}
+
 export type ListingPhoto = {
   id: string;
   storage_path: string;

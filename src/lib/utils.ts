@@ -12,3 +12,11 @@ export function safeNextPath(next: string | null | undefined, fallback: string) 
   }
   return next;
 }
+
+/** "Abdul Karim" becomes "AK"; an empty name gives "?". */
+export function nameInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  const letters = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2);
+  return letters.toUpperCase();
+}

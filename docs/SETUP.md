@@ -135,7 +135,9 @@ A **public repo inside a free GitHub organization** avoids both, and gives all f
 2. When asked, install the **Vercel GitHub app**. Choose the `house-manager-bd` organization and select **Only select repositories**, then `house-manager`.
 3. Stop here. You will import the project during F1, when there is code to deploy.
 
-Only you need a Vercel account. Every pull request will automatically get a preview link that the whole team can open.
+Only you need a Vercel account. Every pull request will automatically get a preview link.
+
+New Vercel projects protect preview links with a Vercel login, so only your own Vercel account can open them (a teammate, or a second browser window used for another test account, sees "Log in to Vercel" or "You Need Access"). Turn this off once, after the project is imported in F1: Vercel, project **house-manager**, **Settings**, **Deployment Protection**, switch off **Vercel Authentication** (Require Log In), **Save**. This exposes nothing new: previews use the same Supabase database as the live site, which is public anyway, and admin pages check the account in the database. (Done for house-manager on 2026-10-16.)
 
 ---
 
@@ -278,9 +280,10 @@ By default, the confirmation link only works in the same browser that signed up.
 
 `{{ .RedirectTo }}` is the callback address the app sends (for example `http://localhost:3000/auth/callback?next=/bn/dashboard`). It already contains a `?`, so the template adds the rest with `&`. This only works when that address matches the Redirect URLs list (3.4 and 8.3). Otherwise Supabase falls back to the Site URL and the link breaks. The app works with both the default and these templates.
 
-### 8.5 Make yourself an admin (for F5 later)
+### 8.5 Make yourself an admin (F5)
 SQL Editor: `update public.profiles set is_admin = true where id = (select id from auth.users where email = 'your@email.com');`
 Repeat for each team member after they sign up. Nobody can do this from the app.
+Admins see **Admin** in the avatar menu and the dashboard menu, which opens `/admin` (review queue, reports, members). Make at least two admins: nobody can approve their own ad. To remove an admin, run the same query with `false`.
 
 ---
 

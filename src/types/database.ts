@@ -1,4 +1,4 @@
-// Database types for the tables created so far.
+// Database types for the tables created so far (F1 to F5).
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
@@ -23,6 +23,26 @@ export type ListingStatus =
   | "rejected"
   | "hidden";
 export type ElectricityBilling = "prepaid" | "postpaid" | "included";
+export type ReportReason =
+  | "broker"
+  | "fake"
+  | "already_rented"
+  | "wrong_info"
+  | "discriminatory"
+  | "offensive"
+  | "other";
+export type ReportStatus = "open" | "upheld" | "dismissed";
+export type ModerationAction = "approve" | "reject" | "hide" | "restore" | "auto_hide" | "ban" | "unban";
+/** Why an ad went to the review queue (F5). */
+export type ListingFlag =
+  | "new_member"
+  | "was_rejected"
+  | "photo_reused"
+  | "phone_many_ads"
+  | "phone_other_member"
+  | "banned_words"
+  | "phone_in_text"
+  | "rent_outlier";
 export type WaterBilling = "included" | "tenant_pays";
 export type GasBilling = "included" | "tenant_pays";
 
@@ -152,6 +172,8 @@ export type ListingRow = {
   view_count: number;
   /** Title and description in compact form for keyword search (F4). Filled by the database. */
   search_text: string;
+  /** When the ad was last sent in, to go live or to the review queue (F5). */
+  submitted_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -191,6 +213,52 @@ export type ListingPhotoRow = {
   height: number | null;
   content_hash: string | null;
   created_at: string;
+};
+
+export type ReportRow = {
+  id: string;
+  listing_id: string;
+  reporter_id: string;
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+};
+
+export type ModerationActionRow = {
+  id: string;
+  admin_id: string | null;
+  listing_id: string | null;
+  user_id: string | null;
+  action: ModerationAction;
+  note: string | null;
+  created_at: string;
+};
+
+export type ListingFlagRow = {
+  listing_id: string;
+  flag: ListingFlag;
+  detail: { [key: string]: Json | undefined };
+  created_at: string;
+};
+
+/** One row of public.admin_list_users() (admins only). */
+export type AdminUserRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  trust_level: number;
+  is_admin: boolean;
+  is_banned: boolean;
+  live_ads: number;
+  total_ads: number;
+  upheld_reports: number;
+  total_count: number;
 };
 
 /** One row of public.search_listings(): only what a visitor may see. */
@@ -271,12 +339,32 @@ export type Database = {
       >;
       listing_photos: Table<ListingPhotoRow>;
       contact_reveals: Table<{ id: string; user_id: string; listing_id: string; created_at: string }>;
+      listing_flags: Table<ListingFlagRow>;
+      reports: Table<ReportRow>;
+      moderation_actions: Table<ModerationActionRow>;
+      moderation_words: Table<{ word: string; created_at: string }>;
     };
     Views: { [_ in never]: never };
     Functions: {
       save_building: { Args: { p_building_id: string | null; p_data: Json }; Returns: string };
       create_listing_draft: { Args: { p_unit_id: string }; Returns: string };
-      submit_listing: { Args: { p_listing_id: string }; Returns: undefined };
+      /** Returns the new status: "active", or "pending_review" for the review queue (F5). */
+      submit_listing: { Args: { p_listing_id: string }; Returns: ListingStatus };
+      reopen_listing: { Args: { p_listing_id: string }; Returns: undefined };
+      report_listing: {
+        Args: { p_listing_id: string; p_reason: ReportReason; p_details?: string | null };
+        Returns: undefined;
+      };
+      moderate_listing: {
+        Args: { p_listing_id: string; p_action: ModerationAction; p_note?: string | null };
+        Returns: ListingStatus;
+      };
+      set_user_ban: { Args: { p_user_id: string; p_banned: boolean; p_note?: string | null }; Returns: undefined };
+      admin_list_users: {
+        Args: { p_q?: string | null; p_filter?: string | null; p_limit?: number; p_offset?: number };
+        Returns: AdminUserRow[];
+      };
+      is_admin: { Args: Record<string, never>; Returns: boolean };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
         Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };
@@ -311,6 +399,9 @@ export type Database = {
     Enums: {
       app_locale: AppLocale;
       app_mode: AppMode;
+      report_reason: ReportReason;
+      report_status: ReportStatus;
+      moderation_action: ModerationAction;
     };
     CompositeTypes: { [_ in never]: never };
   };

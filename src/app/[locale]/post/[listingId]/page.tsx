@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CircleAlert, Pencil } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link, redirect } from "@/i18n/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { getDraftForWizard } from "@/lib/data/listings";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { formatDate, formatTaka } from "@/lib/format";
@@ -38,12 +38,13 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
   const { locale: routeLocale, listingId } = await params;
   const { step: stepParam } = await searchParams;
   const lang = routeLocale as "bn" | "en";
-  const [t, tEnum, locale, user, tree] = await Promise.all([
+  const [t, tEnum, locale, user, tree, profile] = await Promise.all([
     getTranslations("Wizard"),
     getTranslations("Enums"),
     getLocale(),
     getCurrentUser(),
     getLocationTree(),
+    getCurrentProfile(),
   ]);
   if (!user) return null;
 
@@ -73,6 +74,18 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
         </p>
       </div>
       <WizardProgress current={step} listingId={l.id} />
+      {l.rejection_reason && (
+        <Alert variant="destructive">
+          <CircleAlert aria-hidden />
+          <span className="flex flex-col gap-1">
+            <span className="font-semibold">{t("rejectedBeforeTitle")}</span>
+            <span className="break-words whitespace-pre-line text-foreground">
+              {t("rejectedReason", { reason: l.rejection_reason })}
+            </span>
+            <span className="text-foreground">{t("rejectedBeforeBody")}</span>
+          </span>
+        </Alert>
+      )}
 
       <Card>
         <CardHeader>
@@ -137,6 +150,7 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
               listingId={l.id}
               missing={missing}
               photos={photos}
+              review={(profile?.trust_level ?? 0) === 0 ? "first" : l.rejection_reason ? "again" : "normal"}
               rows={{
                 building: [
                   [t("building"), `${building.name}, ${areaLabel(tree, building.area_id, locale)}`],
@@ -209,6 +223,7 @@ function Review({
   listingId,
   missing,
   photos,
+  review,
   rows,
 }: {
   t: Translator;
@@ -217,6 +232,7 @@ function Review({
   listingId: string;
   missing: string[];
   photos: ListingPhoto[];
+  review: "first" | "again" | "normal";
   rows: { building: Row[]; ad: Row[]; costs: Row[]; tenants: Row[] };
 }) {
   const sections: { title: string; step: number | null; rows: Row[] }[] = [
@@ -310,7 +326,7 @@ function Review({
         </section>
       ))}
 
-      <SubmitPanel listingId={listingId} canSubmit={missing.length === 0} />
+      <SubmitPanel listingId={listingId} canSubmit={missing.length === 0} review={review} />
     </div>
   );
 }

@@ -4,7 +4,10 @@ import {
   CalendarDays,
   ChevronRight,
   CircleAlert,
+  Clock,
   ExternalLink,
+  EyeOff,
+  Flag,
   Footprints,
   Lock,
   MapPin,
@@ -13,7 +16,9 @@ import {
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
-import { getAdPage, type AdPage } from "@/lib/data/ad";
+import { getCurrentProfile, isAdminProfile } from "@/lib/auth";
+import { getAdPage, getMyReport, type AdPage } from "@/lib/data/ad";
+import { getListingModeration } from "@/lib/data/admin";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { formatDate, formatNumber, formatTaka, placeName } from "@/lib/format";
 import { photoUrl } from "@/lib/photos";
@@ -21,8 +26,11 @@ import { ADVANCE_WARNING_MONTHS } from "@/lib/validation/listing";
 import { EMPTY_FILTERS, searchHref } from "@/lib/validation/search";
 import { AdMapLazy } from "@/components/ad/ad-map-lazy";
 import { Gallery } from "@/components/ad/gallery";
+import { ReopenButton } from "@/components/ad/reopen-button";
+import { ReportAd } from "@/components/ad/report-ad";
 import { RevealPhone } from "@/components/ad/reveal-phone";
 import { ShareButton } from "@/components/ad/share-button";
+import { AdminAdPanel } from "@/components/admin/admin-ad-panel";
 import { Alert } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -83,19 +91,30 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[lis
 export default async function AdPageRoute({ params, searchParams }: PageProps<"/[locale]/ads/[listingId]">) {
   const { listingId } = await params;
   const query = await searchParams;
-  const [t, tEnum, locale, ad, tree] = await Promise.all([
+  const [t, tEnum, tReport, locale, ad, tree, profile] = await Promise.all([
     getTranslations("AdPage"),
     getTranslations("Enums"),
+    getTranslations("Report"),
     getLocale(),
     getAdPage(listingId),
     getLocationTree(),
+    getCurrentProfile(),
   ]);
   if (!ad) notFound();
 
   const { listing: l, unit, building, photos, nearby, address, ownContact, viewer } = ad;
+  const isAdmin = isAdminProfile(profile);
   const title = l.title ?? t("untitled");
   const area = areaLabel(tree, building.area_id, locale);
-  const ownView = Boolean(viewer?.isPoster || ownContact);
+  // Admins can read every ad's numbers (F5), but only the poster and the
+  // building's managers get the "this is your ad" view.
+  const ownView = Boolean(viewer?.isPoster || (ownContact && !isAdmin));
+  // F5: admins get the moderation panel; members can report a live ad once.
+  const canReport = l.status === "active" && !ownView;
+  const [moderation, myReport] = await Promise.all([
+    isAdmin ? getListingModeration(l.id) : Promise.resolve(null),
+    viewer && canReport ? getMyReport(l.id, viewer.id) : Promise.resolve(null),
+  ]);
   const isMess = l.listing_type === "mess_seat";
   const rules = building.house_rules ?? {};
   const today = new Date().toISOString().slice(0, 10);
@@ -194,20 +213,21 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
       {query.published === "1" && viewer?.isPoster && (
         <FormSuccessStatic title={t("publishedTitle")} body={t("publishedBody")} />
       )}
-      {l.status !== "active" && (
-        <Alert>
-          <CircleAlert aria-hidden />
-          <span className="flex flex-col gap-1">
-            <span className="font-medium text-foreground">
-              {t("notPublic", { status: tEnum(`listingStatus.${l.status}`) })}
-            </span>
-            {l.status === "draft" && viewer?.isPoster && (
-              <Link href={`/post/${l.id}`} className="w-fit text-primary underline underline-offset-2">
-                {t("continueEditing")}
-              </Link>
-            )}
-          </span>
-        </Alert>
+      {l.status !== "active" &&
+        (viewer?.isPoster ? (
+          <PosterStatusNotice ad={ad} justSubmitted={query.submitted === "review"} t={t} tEnum={tEnum} />
+        ) : (
+          !isAdmin && (
+            <Alert>
+              <CircleAlert aria-hidden />
+              <span className="font-medium text-foreground">
+                {t("notPublic", { status: tEnum(`listingStatus.${l.status}`) })}
+              </span>
+            </Alert>
+          )
+        ))}
+      {moderation && viewer && (
+        <AdminAdPanel listingId={l.id} moderation={moderation} viewerId={viewer.id} contact={ownContact} />
       )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-8">
@@ -409,6 +429,19 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
               <span className="text-muted-foreground">{t("safetyBody")}</span>
             </span>
           </Alert>
+
+          {canReport &&
+            (viewer ? (
+              <ReportAd listingId={l.id} alreadyOn={myReport ? formatDate(myReport.created_at, locale) : null} />
+            ) : (
+              <Link
+                href={`/login?next=${encodeURIComponent(nextPath)}`}
+                className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                <Flag className="size-3.5" aria-hidden />
+                {tReport("loginToReport")}
+              </Link>
+            ))}
         </aside>
       </div>
 
@@ -430,6 +463,75 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
         </div>
       </div>
     </div>
+  );
+}
+
+/** What the poster sees on their own ad when it is not live (F5 adds review, rejected and hidden). */
+function PosterStatusNotice({
+  ad,
+  justSubmitted,
+  t,
+  tEnum,
+}: {
+  ad: AdPage;
+  justSubmitted: boolean;
+  t: Awaited<ReturnType<typeof getTranslations<"AdPage">>>;
+  tEnum: Awaited<ReturnType<typeof getTranslations<"Enums">>>;
+}) {
+  const l = ad.listing;
+  if (l.status === "pending_review") {
+    return (
+      <Alert variant={justSubmitted ? "success" : "default"}>
+        <Clock aria-hidden />
+        <span className="flex flex-col gap-2">
+          <span className="font-semibold">{justSubmitted ? t("reviewTitle") : t("pendingTitle")}</span>
+          <span className="text-foreground">{t("reviewBody")}</span>
+          <ReopenButton listingId={l.id} status="pending_review" className="w-fit" />
+        </span>
+      </Alert>
+    );
+  }
+  if (l.status === "rejected") {
+    return (
+      <Alert variant="destructive">
+        <CircleAlert aria-hidden />
+        <span className="flex flex-col gap-2">
+          <span className="font-semibold">{t("rejectedTitle")}</span>
+          {l.rejection_reason && (
+            <span className="break-words whitespace-pre-line text-foreground">
+              {t("rejectedBody", { reason: l.rejection_reason })}
+            </span>
+          )}
+          <ReopenButton listingId={l.id} status="rejected" className="w-fit" />
+        </span>
+      </Alert>
+    );
+  }
+  if (l.status === "hidden") {
+    return (
+      <Alert>
+        <EyeOff aria-hidden />
+        <span className="flex flex-col gap-1">
+          <span className="font-medium text-foreground">{t("hiddenTitle")}</span>
+          <span className="text-muted-foreground">{t("hiddenBody")}</span>
+        </span>
+      </Alert>
+    );
+  }
+  return (
+    <Alert>
+      <CircleAlert aria-hidden />
+      <span className="flex flex-col gap-1">
+        <span className="font-medium text-foreground">
+          {t("notPublic", { status: tEnum(`listingStatus.${l.status}`) })}
+        </span>
+        {l.status === "draft" && (
+          <Link href={`/post/${l.id}`} className="w-fit text-primary underline underline-offset-2">
+            {t("continueEditing")}
+          </Link>
+        )}
+      </span>
+    </Alert>
   );
 }
 

@@ -43,6 +43,15 @@ export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
   return data;
 });
 
+/**
+ * True for team admins (profiles.is_admin, set in the SQL Editor), unless
+ * banned. The database checks the same rule in public.is_admin(), so this
+ * only decides what the pages show.
+ */
+export function isAdminProfile(profile: Pick<Profile, "is_admin" | "is_banned"> | null): boolean {
+  return Boolean(profile?.is_admin && !profile.is_banned);
+}
+
 /** The signed-in user's private row (phone). Only they can read it. */
 export const getCurrentPrivateProfile = cache(
   async (): Promise<ProfilePrivate | null> => {

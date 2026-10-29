@@ -48,10 +48,31 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
   switch (error?.message) {
     case "unit_has_open_listing":
       return "unitHasOpenAd";
-    case "not_allowed":
     case "banned":
+      return "accountBanned";
+    case "not_allowed":
     case "not_authenticated":
       return "notAllowed";
+    case "photo_too_small":
+      return "photoTooSmall";
+    // F5 moderation
+    case "own_listing":
+      return "ownListing";
+    case "already_reported":
+      return "alreadyReported";
+    case "report_limit":
+      return "reportLimit";
+    case "details_required":
+      return "detailsRequired";
+    case "reason_required":
+      return "reasonRequired";
+    case "wrong_status":
+      return "wrongStatus";
+    case "poster_banned":
+      return "posterBanned";
+    case "cannot_ban_self":
+    case "cannot_ban_admin":
+      return "cannotBan";
     case "not_a_draft":
       return "notADraft";
     case "listing_incomplete":

@@ -94,9 +94,10 @@ Storage rules:
 Manual review of every ad does not scale, and fake or broker ads are the main problem the Blueprint describes, so moderation works in layers. The team only looks at what the layers flag.
 
 1. **Automatic checks on submit:** required fields, at least 4 photos, duplicate detection (the unit already has an active ad, or the same photo hash appears on another ad), one phone number used on more than 3 active ads (broker signal), banned words (for example "commission", "কমিশন", "দালাল"), rent far outside the area's usual range.
-2. **Trust levels:** a new member is level 0, so their first ad goes to the review queue. After one approved ad with no upheld reports they become level 1, and their ads publish directly. Flagged ads always go to the queue.
-3. **Community reports:** reasons are broker, fake, already rented, wrong info, discriminatory, offensive, other. Three reports from different members hide the ad until an admin checks it.
-4. **Admin queue:** approve, reject with a reason, hide, restore, ban.
+   As built in F5: missing fields and photos refuse the ad; every other check is a flag that sends it to the queue. Copied photos count when the other ad is in another building or by another member. The phone check counts buildings, not ads (live ads in 4 or more buildings), so an owner with many flats in one building is not flagged; a number that another member uses on an ad or profile is also a flag. A mobile number written in the title or description is a flag (it gets around the 20 a day reveal limit). Rent is compared with the median of 5 or more live ads of the same type in the area, then the thana (below 40% or above 3 times), and with fixed bounds when there are too few ads. Words live in the `moderation_words` table, so the team can change them in the SQL Editor.
+2. **Trust levels:** a new member is level 0, so their first ad goes to the review queue. After one approved ad with no upheld reports they become level 1, and their ads publish directly. Flagged ads always go to the queue. An upheld report (an admin takes the ad down) sets the member back to level 0, and a rejected ad that is sent in again is always checked again.
+3. **Community reports:** reasons are broker, fake, already rented, wrong info, discriminatory, offensive, other. Three reports from different members hide the ad until an admin checks it. One report per member per ad, at most 10 reports per member a day; "other" needs a few words.
+4. **Admin queue:** approve, reject with a reason, hide, restore, ban. As built in F5: pages at `/admin` (overview, review queue with a Hidden tab, reports, members), and the same buttons in an admin panel on each ad page. Restoring an ad also dismisses its open reports; taking it down (reject) upholds them. A ban needs a reason, hides the member's live ads and rejects their waiting ads; lifting it leaves the ads hidden until an admin restores them. Admins cannot approve or restore their own ads, ban themselves or ban another admin. The poster can take a waiting or rejected ad back to a draft to change it.
 
 In the coursework version, the five team members are the admins. At scale, a small moderation team works the queue. A later B2B route: housing societies or building committees (residential areas such as Mirpur DOHS) get an organization account, and the ads they verify get a "society verified" badge. That spreads verification work to people who actually know the buildings.
 
@@ -196,7 +197,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 - `nearby_places`: id, building_id, kind (metro, bus_stop, market, school, hospital, mosque, park), name, walk_minutes. Entered once per building, shown on every ad in it.
 
 **Listings (one ad for one unit)**
-- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, search_text (title and description in compact form for keyword search, filled by the database, since F4), created_at, updated_at.
+- `listings`: id, unit_id, posted_by, posted_as (owner, caretaker, tenant_sublet), owner_name (caretaker whose owner is not on the platform), sublet_consent (tenant_sublet only), listing_type (flat, room, sublet, mess_seat), tenant_types (array), title, description, open_slots (default 1, seats for mess_seat), max_occupants, monthly_rent, rent_negotiable, advance_months, service_charge, electricity (prepaid, postpaid, included), water (included, tenant_pays), gas_bill (included, tenant_pays, empty when the building has no gas), other_charges, extra_rules (on top of the building's house rules), agreement_required, dmp_form_required (default true), available_from, status (draft, pending_review, active, rented, expired, rejected, hidden), rejection_reason, published_at, expires_at (published_at plus 30 days), is_featured, featured_until, view_count, search_text (title and description in compact form for keyword search, filled by the database, since F4), submitted_at (when it was last sent in, orders the review queue, since F5), created_at, updated_at.
 - `listing_private`: listing_id, contact_phone, whatsapp. Readable directly only by the poster and the building's managers. Other logged-in members get the numbers of a live ad through `reveal_contact`, limited to 20 ads a day (since F3).
 - `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed. The first photo (sort_order 0) is always the cover. Visible exactly when the ad is visible. Written only through `add_listing_photo`, `remove_listing_photo` and `reorder_listing_photos` (since F3).
 
@@ -207,8 +208,10 @@ Every table has Row Level Security. Public reads go through the `listings_public
 - `tenancies`: id, unit_id, listing_id, request_id, landlord_id (the poster, so a subletting tenant is the landlord of their sub-tenant), tenant_id, start_date, monthly_rent, advance_amount, status (active, ended, cancelled), created_at. House Manage starts here.
 
 **Trust and engagement**
-- `reports`: id, listing_id, reporter_id, reason, details, status (open, upheld, dismissed), resolved_by, created_at.
-- `moderation_actions`: id, admin_id, listing_id, user_id, action (approve, reject, hide, restore, ban, unban), note, created_at.
+- `reports`: id, listing_id, reporter_id, reason, details, status (open, upheld, dismissed), resolved_by, resolved_at, created_at. One per member per ad. Readable by the reporter (own reports) and admins (since F5).
+- `moderation_actions`: id, admin_id (empty for the system), listing_id, user_id, action (approve, reject, hide, restore, auto_hide, ban, unban), note, created_at. Readable by admins (since F5).
+- `listing_flags`: listing_id, flag (new_member, was_rejected, photo_reused, phone_many_ads, phone_other_member, banned_words, phone_in_text, rent_outlier), detail (json), created_at. Why an ad went to the review queue, worked out on submit. Readable by admins only (since F5).
+- `moderation_words`: word, created_at. Words that send an ad to review. Readable by admins, changed in the SQL Editor (since F5).
 - `contact_reveals`: id, user_id, listing_id, created_at. Limits phone reveals to 20 a day per member and flags scrapers.
 - `saved_listings`: user_id, listing_id, created_at.
 - `notifications`: id, user_id, type, data (json), read_at, created_at.
@@ -216,7 +219,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Approximate pin:** when a building is added, the exact pin is rounded and moved by a random offset of up to about 250 metres. The offset is saved once, so the public pin never moves. If it changed on every page load, someone could average many loads and find the real spot.
 
-**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing`, `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request`, `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads.
+**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request`, `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
 
 **Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status), messages (request_id, created_at).
 
@@ -494,7 +497,7 @@ Each feature is small enough to build, test and deploy on its own.
   Done when: a logged-out visitor sees the ad without the address, and logs in to see it.
 - [x] **F4: Browse, search, map.** Home page, search by area or keyword, filters (rent range, type, tenant type, bedrooms, amenities, gas, available from), sort (newest, rent low to high), map view with markers inside the visible area, pagination.
   Done when: filtering "Mirpur 10, bachelor_male, gas line, under 15,000" shows only matching ads, both as a list and on the map.
-- [ ] **F5: Moderation.** Auto-checks on submit, trust levels, first ad to review queue, report button, auto-hide at 3 reports, admin pages (queue, reports, users).
+- [x] **F5: Moderation.** Auto-checks on submit, trust levels, first ad to review queue, report button, auto-hide at 3 reports, admin pages (queue, reports, users).
   Depends on F2 and F3.
   Done when: a new member's first ad waits in the queue, an admin approves it, and the member's second ad goes live directly.
 - [ ] **F6: Rental requests.** Send request form, "My requests", requests inbox per ad, shortlist, decline with reason, withdraw. Phone shared on shortlist. Request limits.
@@ -550,6 +553,17 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-09 | Map markers sit on the public (approximate) pin, one per building with the cheapest rent, with a note and a zoom limit | Same information as the ad page's circle, and ads in one building share one pin | A circle per ad, exact pins |
 | 2026-10-09 | The map loads up to 300 matching ads first, then asks for the ads inside the visible area after each pan or zoom | Plan F4 ("markers inside the visible area"), and the first view needs no extra request | Loading every ad at once, a "search this area" button |
 | 2026-10-09 | Filters apply with a button (sidebar on computers, bottom sheet on phones); sort applies at once | A phone does not reload after every tap | Applying every change at once |
+| 2026-10-15 | Every automatic check except missing fields is a flag that sends the ad to review; flags are stored in `listing_flags`, readable by admins only | The poster cannot tell which check stopped the ad, so a broker cannot tune the text around it; admins see the reason | Refusing flagged ads outright, flags on the listings row (visible to everyone for live ads) |
+| 2026-10-15 | The phone check counts buildings (4 or more), not ads | An owner with many flats in one building is normal; a broker spreads one number across many buildings | 4 or more ads |
+| 2026-10-15 | A mobile number written in the ad text is a flag | It gets around the 20 a day reveal limit | No check |
+| 2026-10-15 | Banned words live in a table, matched in compact form | The team changes the list without a migration; "no broker" ads land in the queue, so the description hint says it is not needed | Words in code |
+| 2026-10-15 | Rent check: median of 5 or more live ads of the same type in the area, then the thana, else fixed bounds | Works from the first ad and becomes sharper as ads come in | Fixed bounds only |
+| 2026-10-15 | Photos must have a shorter side of at least 600px unless they were large enough to be shrunk to 1,600px; checked in the browser before upload and again in `add_listing_photo` | Smaller photos look blurry on the ad page and cards; panoramas stay allowed | Flagging small photos for review |
+| 2026-10-15 | Taking an ad down (reject) upholds its open reports and sets the poster to level 0; keeping it (restore) dismisses them | One decision per ad, and the trust rule "no upheld reports" follows from it | Separate report and ad decisions |
+| 2026-10-15 | The poster can take a waiting or rejected ad back to a draft; a rejected ad sent in again always goes to review | Fixing an ad is quicker than posting it again, and a fix is checked once more | New ad after every rejection |
+| 2026-10-15 | A ban hides live ads and rejects waiting ads; an unban leaves them hidden | A wrong ban is easy to undo ad by ad, and a waiting ad never skips review | Deleting the member's ads |
+| 2026-10-15 | Admin pages answer "page not found" to non-admins, and admins are set only in the SQL Editor | The pages do not reveal themselves, and nobody can make themselves an admin from the app | An admin role picker in the app |
+| 2026-10-15 | Admins cannot approve or restore their own ads | A second admin looks at it | Self-approval |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
@@ -558,6 +572,7 @@ Each feature is small enough to build, test and deploy on its own.
 - Verify the Mirpur thana and area list against the current DMP list.
 - Lawyer review of the rights page wording before production.
 - Duplicate buildings: two people may add the same building (for example two subletting tenants). For the course, only the creator and owner see a building's units. For production, plan a claim and merge flow where the real owner claims an unclaimed building.
+- Reports from brand new accounts: three fresh accounts can hide any ad until an admin restores it. For production, consider counting only reports from accounts older than a day, or with a confirmed phone (F5 keeps the plan's rule).
 
 ---
 ## University sections

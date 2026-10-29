@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
-import { ArrowRight, Building2, Megaphone, Search, Sparkles, UserRoundPen } from "lucide-react";
+import { ArrowRight, Ban, Building2, Megaphone, Search, ShieldCheck, Sparkles, UserRoundPen } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser } from "@/lib/auth";
+import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
+import { getAdminCounts } from "@/lib/data/admin";
 import { getMyListings } from "@/lib/data/listings";
 import { getMyBuildings } from "@/lib/data/properties";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModeSwitchButton } from "@/components/dashboard/mode-switch-button";
+
+/** The project's contact address (shown to suspended members). */
+const SUPPORT_EMAIL = "housemanagerbd@gmail.com";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Nav");
@@ -28,6 +33,11 @@ export default async function DashboardPage() {
     mode === "host"
       ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id)])
       : [[], []];
+  const isAdmin = isAdminProfile(profile);
+  const [tAdmin, adminCounts] = await Promise.all([
+    getTranslations("Admin"),
+    isAdmin ? getAdminCounts() : Promise.resolve(null),
+  ]);
   const firstName = profile.full_name.trim().split(/\s+/)[0];
   const profileIncomplete =
     !profile.full_name.trim() || !profile.avatar_url || !privateProfile?.phone;
@@ -42,6 +52,43 @@ export default async function DashboardPage() {
           {mode === "host" ? t("hostIntro") : t("seekIntro")}
         </p>
       </div>
+
+      {profile.is_banned && (
+        <Alert variant="destructive">
+          <Ban aria-hidden />
+          <span className="flex flex-col gap-1">
+            <span className="font-semibold">{t("bannedTitle")}</span>
+            <span className="text-foreground">{t("bannedBody")}</span>
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="w-fit text-foreground underline underline-offset-2" dir="ltr">
+              {SUPPORT_EMAIL}
+            </a>
+          </span>
+        </Alert>
+      )}
+
+      {adminCounts && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="size-5 text-primary" aria-hidden />
+              {t("adminCardTitle")}
+            </CardTitle>
+            <CardDescription>{t("adminCardBody")}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <ul className="flex flex-col gap-1 text-sm">
+              <li>{tAdmin("countReview", { count: adminCounts.review })}</li>
+              <li>{tAdmin("countReported", { count: adminCounts.reported })}</li>
+            </ul>
+            <Button asChild variant="outline" className="w-fit">
+              <Link href="/admin">
+                {t("adminCardCta")}
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {profileIncomplete && (
         <Card className="border-accent/50 bg-accent/5">

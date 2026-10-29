@@ -13,6 +13,7 @@ import {
   MIN_PHOTOS,
   PHOTO_MAX_SIDE,
   PHOTO_QUALITY,
+  isPhotoTooSmall,
   photoUrl,
   type ListingPhoto,
 } from "@/lib/photos";
@@ -61,6 +62,8 @@ export function PhotosStep({
         maxSize: PHOTO_MAX_SIDE,
         quality: PHOTO_QUALITY,
       });
+      // Checked before upload, so a blurry photo costs no data (F5).
+      if (isPhotoTooSmall(width, height)) return "photoTooSmall";
       const ext = blob.type === "image/webp" ? "webp" : "jpg";
       const path = `${userId}/${listingId}/${crypto.randomUUID()}.${ext}`;
 
@@ -316,6 +319,7 @@ export function PhotosStep({
             <li>{t("tip2")}</li>
             <li>{t("tip3")}</li>
             <li>{t("tip4")}</li>
+            <li>{t("tip5")}</li>
           </ul>
         </span>
       </Alert>
