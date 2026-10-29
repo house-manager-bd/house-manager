@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Building2, ImageOff, Megaphone, Plus } from "lucide-react";
+import { Building2, ImageOff, Inbox, Megaphone, Plus } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyListings } from "@/lib/data/listings";
+import { getInbox } from "@/lib/data/requests";
 import { formatDate, formatTaka } from "@/lib/format";
 import { MIN_PHOTOS, photoUrl } from "@/lib/photos";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,8 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
     getCurrentUser(),
   ]);
   if (!user) return null;
-  const ads = await getMyListings(user.id);
+  const [ads, inbox] = await Promise.all([getMyListings(user.id), getInbox()]);
+  const newRequestsText = (count: number) => (count > 0 ? t("requestsNew", { count }) : null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -126,6 +128,13 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                     </span>
                   </div>
                   <div className="flex flex-wrap items-start gap-2">
+                    {(ad.status === "active" || inbox.some((row) => row.listing_id === ad.id)) && (
+                      <RequestsButton
+                        listingId={ad.id}
+                        label={t("requests")}
+                        newText={newRequestsText(inbox.find((row) => row.listing_id === ad.id)?.pending_count ?? 0)}
+                      />
+                    )}
                     {ad.status === "draft" && (
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/ads/${ad.id}`}>{t("preview")}</Link>
@@ -151,5 +160,22 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
         </ul>
       )}
     </div>
+  );
+}
+
+/** Opens the ad's requests (F6), with the number of new ones. */
+function RequestsButton({ listingId, label, newText }: { listingId: string; label: string; newText: string | null }) {
+  return (
+    <Button asChild size="sm" variant="outline">
+      <Link href={`/dashboard/ads/${listingId}/requests`}>
+        <Inbox aria-hidden />
+        {label}
+        {newText && (
+          <span className="rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-accent-foreground">
+            {newText}
+          </span>
+        )}
+      </Link>
+    </Button>
   );
 }

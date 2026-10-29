@@ -12,9 +12,10 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
 import { Link, usePathname } from "@/i18n/navigation";
+import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AppMode } from "@/types/database";
 import { ModeSwitchButton } from "./mode-switch-button";
@@ -40,7 +41,7 @@ const MENUS: Record<AppMode, Item[]> = {
   seek: [
     { key: "overview", icon: LayoutDashboard, href: "/dashboard" },
     { key: "searchAds", icon: Search, href: "/ads" },
-    { key: "myRequests", icon: Send, href: null }, // F6
+    { key: "myRequests", icon: Send, href: "/dashboard/requests" },
     { key: "savedAds", icon: Heart, href: null }, // F10
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
@@ -48,7 +49,7 @@ const MENUS: Record<AppMode, Item[]> = {
     { key: "overview", icon: LayoutDashboard, href: "/dashboard" },
     { key: "myProperties", icon: Building2, href: "/dashboard/properties" },
     { key: "myAds", icon: Megaphone, href: "/dashboard/ads" },
-    { key: "requestsInbox", icon: Inbox, href: null }, // F6
+    { key: "requestsInbox", icon: Inbox, href: "/dashboard/inbox" },
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
 };
@@ -56,10 +57,29 @@ const MENUS: Record<AppMode, Item[]> = {
 // Team admins also get a link to the admin pages (F5), in both modes.
 const ADMIN_ITEM: Item = { key: "admin", icon: ShieldCheck, href: "/admin" };
 
-export function DashboardNav({ mode, isAdmin = false }: { mode: AppMode; isAdmin?: boolean }) {
+/** One ad's requests (/dashboard/ads/id/requests) belong to the inbox, not to My ads. */
+const AD_REQUESTS = /^\/dashboard\/ads\/[^/]+\/requests$/;
+
+function isActive(key: Item["key"], href: string | null, pathname: string) {
+  if (href === null) return false;
+  if (AD_REQUESTS.test(pathname)) return key === "requestsInbox";
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
+}
+
+export function DashboardNav({
+  mode,
+  isAdmin = false,
+  badges = {},
+}: {
+  mode: AppMode;
+  isAdmin?: boolean;
+  /** Counts shown next to menu items, such as new requests in the inbox (F6). */
+  badges?: Partial<Record<Item["key"], number>>;
+}) {
   const t = useTranslations("Dashboard");
   const tCommon = useTranslations("Common");
   const tNav = useTranslations("Nav");
+  const locale = useLocale();
   const pathname = usePathname();
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -84,12 +104,23 @@ export function DashboardNav({ mode, isAdmin = false }: { mode: AppMode; isAdmin
         className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
       >
         {(isAdmin ? [...MENUS[mode], ADMIN_ITEM] : MENUS[mode]).map(({ key, icon: Icon, href }) => {
-          const active =
-            href !== null && (pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/")));
+          const active = isActive(key, href, pathname);
+          const badge = badges[key] ?? 0;
           const content = (
             <>
               <Icon className="size-4 shrink-0" aria-hidden />
               <span className="whitespace-nowrap">{t(key)}</span>
+              {badge > 0 && (
+                <span
+                  className={cn(
+                    "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                    active ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground",
+                  )}
+                  aria-label={t("newBadge", { count: badge })}
+                >
+                  {formatNumber(badge, locale)}
+                </span>
+              )}
               {href === null && (
                 <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                   {tCommon("soon")}

@@ -18,6 +18,22 @@ export function formatDate(isoDate: string, locale: string) {
   }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
+/**
+ * A moment (timestamptz) as Dhaka date and time: "30 Oct 2026, 2:15 pm", or
+ * "৩০ অক্টো, ২০২৬, ২:১৫ দুপুর" (Bangla day periods, not AM and PM).
+ */
+export function formatDateTime(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    ...(locale === "bn" ? { dayPeriod: "short" as const } : { hour12: true }),
+    timeZone: "Asia/Dhaka",
+  }).format(new Date(iso));
+}
+
 /** Pick the Bangla or English name of a location row. */
 export function placeName(row: { name_en: string; name_bn: string } | null | undefined, locale: string) {
   if (!row) return "";

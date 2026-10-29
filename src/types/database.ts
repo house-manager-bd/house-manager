@@ -1,4 +1,4 @@
-// Database types for the tables created so far (F1 to F5).
+// Database types for the tables created so far (F1 to F6).
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
@@ -43,6 +43,18 @@ export type ListingFlag =
   | "banned_words"
   | "phone_in_text"
   | "rent_outlier";
+/** Plan section 1.4. offered and confirmed come with F8. */
+export type RequestStatus =
+  | "pending"
+  | "shortlisted"
+  | "offered"
+  | "confirmed"
+  | "declined"
+  | "withdrawn"
+  | "expired";
+export type HouseholdType = "family" | "bachelor_male" | "bachelor_female";
+/** filled is also used by F8 when the place goes to someone else. */
+export type DeclineReason = "filled" | "household" | "move_in" | "other";
 export type WaterBilling = "included" | "tenant_pays";
 export type GasBilling = "included" | "tenant_pays";
 
@@ -261,6 +273,70 @@ export type AdminUserRow = {
   total_count: number;
 };
 
+export type RentalRequestRow = {
+  id: string;
+  listing_id: string;
+  tenant_id: string;
+  status: RequestStatus;
+  household_type: HouseholdType;
+  members_count: number;
+  occupation: string;
+  move_in_date: string;
+  message: string | null;
+  offer_expires_at: string | null;
+  decline_reason: DeclineReason | null;
+  decline_note: string | null;
+  shortlisted_at: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** One row of public.my_requests(): the seeker's request with a summary of the ad (F6). */
+export type MyRequestRow = Pick<
+  RentalRequestRow,
+  | "id"
+  | "listing_id"
+  | "status"
+  | "household_type"
+  | "members_count"
+  | "occupation"
+  | "move_in_date"
+  | "message"
+  | "decline_reason"
+  | "decline_note"
+  | "shortlisted_at"
+  | "closed_at"
+  | "created_at"
+> & {
+  listing_title: string | null;
+  listing_type: ListingType;
+  listing_status: ListingStatus;
+  monthly_rent: number | null;
+  area_id: number;
+  landmark: string | null;
+  cover_path: string | null;
+  poster_name: string | null;
+  posted_as: PostedAs;
+};
+
+/** One row of public.request_inbox(): an ad the landlord manages, with request counts (F6). */
+export type InboxRow = {
+  listing_id: string;
+  listing_title: string | null;
+  listing_type: ListingType;
+  listing_status: ListingStatus;
+  monthly_rent: number | null;
+  unit_label: string;
+  building_name: string;
+  area_id: number;
+  cover_path: string | null;
+  pending_count: number;
+  shortlisted_count: number;
+  closed_count: number;
+  last_request_at: string;
+};
+
 /** One row of public.search_listings(): only what a visitor may see. */
 export type SearchListingRow = {
   id: string;
@@ -343,6 +419,7 @@ export type Database = {
       reports: Table<ReportRow>;
       moderation_actions: Table<ModerationActionRow>;
       moderation_words: Table<{ word: string; created_at: string }>;
+      rental_requests: Table<RentalRequestRow>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -365,6 +442,27 @@ export type Database = {
         Returns: AdminUserRow[];
       };
       is_admin: { Args: Record<string, never>; Returns: boolean };
+      /** F6: the ad's poster or a manager of its building. */
+      can_manage_listing: { Args: { p_listing_id: string }; Returns: boolean };
+      send_request: {
+        Args: {
+          p_listing_id: string;
+          p_household_type: HouseholdType;
+          p_members_count: number;
+          p_occupation: string;
+          p_move_in_date: string;
+          p_message?: string | null;
+        };
+        Returns: string;
+      };
+      shortlist_request: { Args: { p_request_id: string }; Returns: undefined };
+      decline_request: {
+        Args: { p_request_id: string; p_reason: DeclineReason; p_note?: string | null };
+        Returns: undefined;
+      };
+      withdraw_request: { Args: { p_request_id: string }; Returns: undefined };
+      my_requests: { Args: Record<string, never>; Returns: MyRequestRow[] };
+      request_inbox: { Args: Record<string, never>; Returns: InboxRow[] };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
         Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };
@@ -402,6 +500,9 @@ export type Database = {
       report_reason: ReportReason;
       report_status: ReportStatus;
       moderation_action: ModerationAction;
+      request_status: RequestStatus;
+      household_type: HouseholdType;
+      decline_reason: DeclineReason;
     };
     CompositeTypes: { [_ in never]: never };
   };

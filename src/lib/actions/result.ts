@@ -85,6 +85,27 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "uploadFailed";
     case "reveal_limit":
       return "revealLimit";
+    // F6 rental requests
+    case "listing_not_active":
+      return "listingNotActive";
+    case "profile_incomplete":
+      return "profileIncomplete";
+    case "move_in_invalid":
+      return "moveInInvalid";
+    case "too_many_members":
+      return "tooManyMembers";
+    case "already_requested":
+      return "alreadyRequested";
+    case "request_declined":
+      return "requestDeclined";
+    case "request_limit":
+      return "requestLimit";
+    case "request_daily_limit":
+      return "requestDailyLimit";
+    case "seeker_banned":
+      return "seekerBanned";
+    case "invalid_request":
+      return "generic";
   }
   switch (error?.code) {
     case "23505":

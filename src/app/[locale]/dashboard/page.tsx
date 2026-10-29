@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { ArrowRight, Ban, Building2, Megaphone, Search, ShieldCheck, Sparkles, UserRoundPen } from "lucide-react";
+import { ArrowRight, Ban, Building2, Inbox, Megaphone, Search, Send, ShieldCheck, Sparkles, UserRoundPen } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
 import { getAdminCounts } from "@/lib/data/admin";
 import { getMyListings } from "@/lib/data/listings";
 import { getMyBuildings } from "@/lib/data/properties";
+import { getMyRequests, getNewRequestCount } from "@/lib/data/requests";
+import { OPEN_STATUSES } from "@/lib/validation/request";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,10 +31,13 @@ export default async function DashboardPage() {
   if (!user || !profile?.default_mode) return null; // The layout redirects first.
 
   const mode = profile.default_mode;
-  const [buildings, ads] =
+  const [buildings, ads, newRequests] =
     mode === "host"
-      ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id)])
-      : [[], []];
+      ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id), getNewRequestCount()])
+      : [[], [], 0];
+  const myRequests = mode === "seek" ? await getMyRequests() : [];
+  const openRequests = myRequests.filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status)).length;
+  const shortlistedFor = myRequests.filter((r) => r.status === "shortlisted").length;
   const isAdmin = isAdminProfile(profile);
   const [tAdmin, adminCounts] = await Promise.all([
     getTranslations("Admin"),
@@ -130,6 +135,13 @@ export default async function DashboardPage() {
                   <Megaphone className="size-4 text-muted-foreground" aria-hidden />
                   {t("myAdsCount", { count: ads.length })}
                 </Link>
+                <Link
+                  href="/dashboard/inbox"
+                  className={`flex items-center gap-2 hover:underline ${newRequests > 0 ? "font-semibold text-amber-800" : ""}`}
+                >
+                  <Inbox className="size-4 text-muted-foreground" aria-hidden />
+                  {t("newRequestsCount", { count: newRequests })}
+                </Link>
               </div>
               <Button asChild className="w-fit">
                 <Link href="/post">
@@ -148,7 +160,16 @@ export default async function DashboardPage() {
               </CardTitle>
               <CardDescription>{t("nextStepsSeek")}</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1 text-sm">
+                <Link href="/dashboard/requests" className="flex items-center gap-2 hover:underline">
+                  <Send className="size-4 text-muted-foreground" aria-hidden />
+                  {t("openRequestsCount", { count: openRequests })}
+                </Link>
+                {shortlistedFor > 0 && (
+                  <p className="font-medium text-primary">{t("shortlistedForCount", { count: shortlistedFor })}</p>
+                )}
+              </div>
               <Button asChild className="w-fit">
                 <Link href="/ads">
                   <Search aria-hidden />
