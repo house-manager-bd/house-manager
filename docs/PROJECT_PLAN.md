@@ -72,6 +72,8 @@ Rules:
 - On confirm, in one database transaction: the tenancy is created for the unit, `open_slots` goes down by one, and if it reaches zero the listing becomes `rented`, the unit becomes `occupied`, and every other open request is declined with a polite automatic message.
 - Both sides confirm. The landlord offers, the tenant accepts. Neither can create a tenancy alone.
 
+As built in F6: requests can be sent only for live ads, by members who are not banned and have a name and a mobile number on their profile (the landlord needs both). The form asks who will live there (family, bachelor male, bachelor female), how many people (at most the ad's maximum, and at most the seats on offer for a mess), occupation, a move-in date between today and a year ahead, and an optional message. Besides one open request per ad and 10 open requests, a member can send at most 20 requests in 24 hours (so withdrawing and sending again cannot flood landlords), and cannot ask again for an ad whose landlord declined them. The ad's poster and the managers of its building answer requests; admins can read requests but never answer them. Shortlisting works only while the ad is live and the member is not banned; declining needs a reason (the place is no longer available, a different kind of household, the move-in date does not suit, or another reason with a note), and the member sees it in their own language. A banned member can still withdraw, and a banned landlord can still decline: closing a request shares nothing. Expiry after 14 days without an answer comes with the scheduled job in F10.
+
 ### 1.5 What is shared, and when
 Personal data is shared in stages. A fake ad must not be able to collect NID numbers from dozens of applicants, and the Personal Data Protection Act 2026 asks for minimum collection with consent.
 
@@ -187,7 +189,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **People**
 - `profiles`: id (same as auth user id), full_name, avatar_url, preferred_locale (bn or en), default_mode (seek or host), is_admin, trust_level (0 or 1), is_banned, created_at. Readable by everyone.
-- `profile_private`: user_id, phone, phone_verified. Readable by the user, and by a landlord once that user's request is shortlisted or later.
+- `profile_private`: user_id, phone, phone_verified. Readable by the user, and by a landlord once that user's request on one of the landlord's ads is shortlisted or later (since F6; withdrawing or declining hides it again).
 
 **Properties (shared with House Manage)**
 - `buildings`: id, created_by, owner_id (empty while unclaimed), name (for example "Rahman Villa"), area_id, landmark, approx_lat, approx_lng, total_floors, gas (titas_line, lpg, none), amenities (array: lift, parking, generator, security_guard, cctv, rooftop), house_rules (pets, smoking, guests, gate closing time, rooftop use, plus free text), created_at, updated_at.
@@ -202,7 +204,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 - `listing_photos`: id, listing_id, storage_path, sort_order, is_cover, width, height, content_hash (duplicate detection). Copied when a unit is re-listed. The first photo (sort_order 0) is always the cover. Visible exactly when the ad is visible. Written only through `add_listing_photo`, `remove_listing_photo` and `reorder_listing_photos` (since F3).
 
 **Requests and tenancy**
-- `rental_requests`: id, listing_id, tenant_id, status (section 1.4), household_type, members_count, occupation, move_in_date, message, offer_expires_at, decline_reason, created_at, updated_at.
+- `rental_requests`: id, listing_id, tenant_id, status (section 1.4), household_type (family, bachelor_male, bachelor_female), members_count, occupation, move_in_date, message, offer_expires_at, decline_reason (filled, household, move_in, other), decline_note, shortlisted_at, closed_at, created_at, updated_at. Readable by the seeker, the ad's poster and building managers, and admins; written only through the request functions (since F6).
 - `messages`: id, request_id, sender_id, body, created_at, read_at. Readable only by the two people on that request.
 - `tenant_verifications`: request_id, tenant_id, nid_encrypted, nid_last4, photo_path (private bucket), permanent_address, consent_at, created_at. Readable only by the tenant and the listing's owner.
 - `tenancies`: id, unit_id, listing_id, request_id, landlord_id (the poster, so a subletting tenant is the landlord of their sub-tenant), tenant_id, start_date, monthly_rent, advance_amount, status (active, ended, cancelled), created_at. House Manage starts here.
@@ -219,9 +221,11 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Approximate pin:** when a building is added, the exact pin is rounded and moved by a random offset of up to about 250 metres. The offset is saved once, so the public pin never moves. If it changed on every page load, someone could average many loads and find the real spot.
 
-**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request`, `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
+**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request` (F6, with the read-only `my_requests` for the seeker and `request_inbox` for the landlord), `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
 
-**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status), messages (request_id, created_at).
+**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status) and (tenant_id, created_at), one open request per seeker per ad (unique where pending, shortlisted or offered), listings (unit_id) (F6), messages (request_id, created_at).
+
+**Policies that scale (F6):** the request and phone policies use "listing_id in (select managed_listing_ids())" and "user_id in (select shortlisted_member_ids())", which Postgres works out once per query. A per-row check took over a second with 20,000 requests; this takes a few milliseconds.
 
 ## 5. ER diagram
 
@@ -342,8 +346,10 @@ flowchart TD
     DASH --> MYADS["My ads"]
     MYADS --> POST
     MYADS --> EDIT["Edit ad"]
-    MYADS --> INBOX["Requests for an ad"]
-    DASH --> MYREQ["My requests"]
+    MYADS --> INBOX["Requests for an ad: /dashboard/ads/id/requests"]
+    DASH --> INBOXALL["Requests inbox: /dashboard/inbox"]
+    INBOXALL --> INBOX
+    DASH --> MYREQ["My requests: /dashboard/requests"]
     INBOX --> THREAD["Request thread and offer: /dashboard/requests/id"]
     MYREQ --> THREAD
     DASH --> SAVED["Saved ads"]
@@ -400,6 +406,8 @@ house-manager/
                 page.tsx
               requests/
                 page.tsx
+          inbox/
+            page.tsx
           requests/
             page.tsx
             [id]/
@@ -500,8 +508,9 @@ Each feature is small enough to build, test and deploy on its own.
 - [x] **F5: Moderation.** Auto-checks on submit, trust levels, first ad to review queue, report button, auto-hide at 3 reports, admin pages (queue, reports, users).
   Depends on F2 and F3.
   Done when: a new member's first ad waits in the queue, an admin approves it, and the member's second ad goes live directly.
-- [ ] **F6: Rental requests.** Send request form, "My requests", requests inbox per ad, shortlist, decline with reason, withdraw. Phone shared on shortlist. Request limits.
+- [x] **F6: Rental requests.** Send request form, "My requests", requests inbox per ad, shortlist, decline with reason, withdraw. Phone shared on shortlist. Request limits.
   Depends on F3.
+  Done when: a member sends a request, the landlord shortlists it and sees the member's phone number, declines another with a reason the member sees, and the member withdraws a request, after which the landlord no longer sees the number.
 - [ ] **F7: Message thread.** One thread per request, live updates with Supabase Realtime, unread counts.
   Depends on F6.
 - [ ] **F8: Offer and confirm.** Make offer (48 hours), accept with NID number, photo, permanent address and consent, NID encrypted on the server, tenancy created in one transaction, other requests auto-declined when full.
@@ -564,6 +573,15 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-15 | A ban hides live ads and rejects waiting ads; an unban leaves them hidden | A wrong ban is easy to undo ad by ad, and a waiting ad never skips review | Deleting the member's ads |
 | 2026-10-15 | Admin pages answer "page not found" to non-admins, and admins are set only in the SQL Editor | The pages do not reveal themselves, and nobody can make themselves an admin from the app | An admin role picker in the app |
 | 2026-10-15 | Admins cannot approve or restore their own ads | A second admin looks at it | Self-approval |
+| 2026-10-30 | A request needs a name and a mobile number on the profile | The landlord sees the name at once and calls the number after shortlisting; a shortlist without a number is useless | Asking for the number only at shortlisting |
+| 2026-10-30 | Household type is family, bachelor (male) or bachelor (female); occupation is free text | Matches how Dhaka ads describe tenants; student or job holder is an occupation, not a household | Reusing the five ad tenant types |
+| 2026-10-30 | People are limited to the ad's maximum, and to the seats on offer for a mess | The landlord already said so in the ad, and the form tells the member before sending | Allowing any number and leaving it to the landlord |
+| 2026-10-30 | Besides 10 open requests, at most 20 requests in 24 hours, and no new request after a decline on the same ad | Withdrawing and sending again would otherwise flood a landlord; a "no" should stay a no | Only the 10 open limit |
+| 2026-10-30 | Decline reasons are fixed choices (plus a note), stored as a code | The member reads the reason in their own language; F8's automatic decline uses the same "no longer available" code | Free text only |
+| 2026-10-30 | The poster and the building's managers answer requests; admins read them but cannot answer | Owners and caretakers act for the building; an admin acting as a landlord would share a member's phone with the wrong person | Poster only; admins acting on requests |
+| 2026-10-30 | Shortlisting only while the ad is live and the member is not banned; declining and withdrawing always allowed, even when banned | A hidden ad may belong to a broker, so no phone numbers go to it; closing a request shares nothing | Blocking every action on hidden ads or for banned members |
+| 2026-10-30 | My requests and the inbox come from two read-only database functions | A member's request must still show its ad's title after the ad is hidden or rented, without opening hidden ads to everyone who asked | Widening the listings policy for requesters |
+| 2026-10-30 | Landlords see the number of new requests in the menu and on the dashboard | Notifications only come in F9 | Nothing until F9 |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
@@ -573,6 +591,7 @@ Each feature is small enough to build, test and deploy on its own.
 - Lawyer review of the rights page wording before production.
 - Duplicate buildings: two people may add the same building (for example two subletting tenants). For the course, only the creator and owner see a building's units. For production, plan a claim and merge flow where the real owner claims an unclaimed building.
 - Reports from brand new accounts: three fresh accounts can hide any ad until an admin restores it. For production, consider counting only reports from accounts older than a day, or with a confirmed phone (F5 keeps the plan's rule).
+- Requests on an ad that stops being live (hidden, rejected, expired) stay open until the member withdraws or the landlord declines them. The F10 scheduled job could close them together with the 14 day expiry.
 
 ---
 ## University sections

@@ -9,20 +9,26 @@ import {
   EyeOff,
   Flag,
   Footprints,
+  Inbox,
   Lock,
   MapPin,
+  Send,
   ShieldCheck,
+  Star,
+  UserRoundPen,
 } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
-import { getCurrentProfile, isAdminProfile } from "@/lib/auth";
+import { getCurrentPrivateProfile, getCurrentProfile, isAdminProfile } from "@/lib/auth";
 import { getAdPage, getMyReport, type AdPage } from "@/lib/data/ad";
 import { getListingModeration } from "@/lib/data/admin";
+import { getInbox, getMyOpenRequestCount, getMyRequestForListing } from "@/lib/data/requests";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
-import { formatDate, formatNumber, formatTaka, placeName } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, formatTaka, placeName } from "@/lib/format";
 import { photoUrl } from "@/lib/photos";
 import { ADVANCE_WARNING_MONTHS } from "@/lib/validation/listing";
+import { OPEN_REQUEST_LIMIT } from "@/lib/validation/request";
 import { EMPTY_FILTERS, searchHref } from "@/lib/validation/search";
 import { AdMapLazy } from "@/components/ad/ad-map-lazy";
 import { Gallery } from "@/components/ad/gallery";
@@ -31,6 +37,7 @@ import { ReportAd } from "@/components/ad/report-ad";
 import { RevealPhone } from "@/components/ad/reveal-phone";
 import { ShareButton } from "@/components/ad/share-button";
 import { AdminAdPanel } from "@/components/admin/admin-ad-panel";
+import { RequestForm } from "@/components/requests/request-form";
 import { Alert } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -91,10 +98,12 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[lis
 export default async function AdPageRoute({ params, searchParams }: PageProps<"/[locale]/ads/[listingId]">) {
   const { listingId } = await params;
   const query = await searchParams;
-  const [t, tEnum, tReport, locale, ad, tree, profile] = await Promise.all([
+  const [t, tEnum, tReport, tRequest, tErrors, locale, ad, tree, profile] = await Promise.all([
     getTranslations("AdPage"),
     getTranslations("Enums"),
     getTranslations("Report"),
+    getTranslations("RequestForm"),
+    getTranslations("Errors"),
     getLocale(),
     getAdPage(listingId),
     getLocationTree(),
@@ -111,10 +120,17 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
   const ownView = Boolean(viewer?.isPoster || (ownContact && !isAdmin));
   // F5: admins get the moderation panel; members can report a live ad once.
   const canReport = l.status === "active" && !ownView;
-  const [moderation, myReport] = await Promise.all([
+  // F6: members can send a request for a live ad; the poster sees how many came in.
+  const canRequest = Boolean(viewer) && l.status === "active" && !ownView;
+  const [moderation, myReport, myRequest, myPrivate, openRequests, inbox] = await Promise.all([
     isAdmin ? getListingModeration(l.id) : Promise.resolve(null),
     viewer && canReport ? getMyReport(l.id, viewer.id) : Promise.resolve(null),
+    viewer && canRequest ? getMyRequestForListing(l.id, viewer.id) : Promise.resolve(null),
+    canRequest ? getCurrentPrivateProfile() : Promise.resolve(null),
+    viewer && canRequest ? getMyOpenRequestCount(viewer.id) : Promise.resolve(0),
+    ownView ? getInbox() : Promise.resolve([]),
   ]);
+  const newRequests = inbox.find((row) => row.listing_id === l.id)?.pending_count ?? 0;
   const isMess = l.listing_type === "mess_seat";
   const rules = building.house_rules ?? {};
   const today = new Date().toISOString().slice(0, 10);
@@ -383,7 +399,11 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
           </Section>
         </div>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:self-start">
+        {/* Sticky on computers, and scrollable when the request or report form
+            makes it taller than the screen (otherwise its buttons would only
+            come into view at the very end of the page). The 1px padding keeps
+            the cards' shadows. */}
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-20 lg:-m-1 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-y-auto lg:p-1">
           <Card id="contact" className="scroll-mt-20 gap-4 py-5">
             <CardContent className="flex flex-col gap-4">
               <PosterBlock ad={ad} t={t} tEnum={tEnum} locale={locale} />
@@ -391,6 +411,18 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
               {ownView ? (
                 <>
                   <p className="rounded-md bg-secondary px-3 py-2 text-sm text-secondary-foreground">{t("yourAd")}</p>
+                  <Link
+                    href={`/dashboard/ads/${l.id}/requests`}
+                    className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-sm hover:bg-muted"
+                  >
+                    <span className="flex items-center gap-2 font-medium">
+                      <Inbox className="size-4 text-primary" aria-hidden />
+                      {tRequest("ownAdRequests")}
+                    </span>
+                    <span className={newRequests > 0 ? "font-semibold text-amber-800" : "text-muted-foreground"}>
+                      {tRequest("ownAdNew", { count: newRequests })}
+                    </span>
+                  </Link>
                   <RevealPhone
                     listingId={l.id}
                     initial={{ phone: ownContact?.contact_phone ?? null, whatsapp: ownContact?.whatsapp ?? null }}
@@ -421,6 +453,25 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
               </div>
             </CardContent>
           </Card>
+
+          {canRequest && profile && (
+            <Card id="request" className="scroll-mt-20 gap-4 py-5">
+              <CardContent className="flex flex-col gap-4">
+                <RequestPanel
+                  listing={l}
+                  myRequest={myRequest}
+                  justSent={query.request === "sent"}
+                  banned={profile.is_banned}
+                  profileReady={Boolean(profile.full_name.trim() && myPrivate?.phone)}
+                  openRequests={openRequests}
+                  locale={locale}
+                  t={tRequest}
+                  tEnum={tEnum}
+                  tErrors={tErrors}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <Alert>
             <ShieldCheck aria-hidden />
@@ -462,6 +513,119 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+type RequestState = Awaited<ReturnType<typeof getMyRequestForListing>>;
+
+/**
+ * The request card on a live ad for a member who is not its landlord (F6):
+ * the form, the status of a request already sent, or why a request cannot
+ * be sent (suspended, declined before, profile incomplete, 10 open requests).
+ */
+function RequestPanel({
+  listing: l,
+  myRequest,
+  justSent,
+  banned,
+  profileReady,
+  openRequests,
+  locale,
+  t,
+  tEnum,
+  tErrors,
+}: {
+  listing: AdPage["listing"];
+  myRequest: RequestState | null;
+  justSent: boolean;
+  banned: boolean;
+  profileReady: boolean;
+  openRequests: number;
+  locale: string;
+  t: Awaited<ReturnType<typeof getTranslations<"RequestForm">>>;
+  tEnum: Awaited<ReturnType<typeof getTranslations<"Enums">>>;
+  tErrors: Awaited<ReturnType<typeof getTranslations<"Errors">>>;
+}) {
+  const open = myRequest?.open;
+  if (open) {
+    return (
+      <div className="flex flex-col gap-3">
+        {justSent && <FormSuccessStatic title={t("sentTitle")} body={t("sentBody")} />}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">{t("statusTitle")}</h2>
+          <Badge variant={open.status === "shortlisted" ? "success" : "warning"}>
+            {open.status === "shortlisted" && <Star className="size-3" aria-hidden />}
+            {tEnum(`requestStatus.${open.status}`)}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">{t("sentOn", { date: formatDateTime(open.created_at, locale) })}</p>
+        <p className={open.status === "shortlisted" ? "text-sm text-primary" : "text-sm text-muted-foreground"}>
+          {open.status === "shortlisted" ? t("shortlistedNote") : t("pendingNote")}
+        </p>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/dashboard/requests">
+            <Send aria-hidden />
+            {t("myRequests")}
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  let blocked: ReactNode = null;
+  if (banned) {
+    blocked = <p className="text-sm text-muted-foreground">{tErrors("accountBanned")}</p>;
+  } else if (myRequest?.declined) {
+    const d = myRequest.declined;
+    blocked = (
+      <div className="flex flex-col gap-1 text-sm">
+        <p className="font-medium">{t("declinedBefore")}</p>
+        {d.decline_reason && <p className="text-muted-foreground">{tEnum(`declineReason.${d.decline_reason}`)}</p>}
+        {d.decline_note && <p className="break-words whitespace-pre-line text-muted-foreground">{d.decline_note}</p>}
+      </div>
+    );
+  } else if (!profileReady) {
+    blocked = (
+      <div className="flex flex-col gap-3">
+        <p className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">{t("profileTitle")}</span>
+          <span className="text-muted-foreground">{t("profileBody")}</span>
+        </p>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/dashboard/profile">
+            <UserRoundPen aria-hidden />
+            {t("profileCta")}
+          </Link>
+        </Button>
+      </div>
+    );
+  } else if (openRequests >= OPEN_REQUEST_LIMIT) {
+    blocked = (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">{tErrors("requestLimit")}</p>
+        <Button asChild variant="outline" className="w-full">
+          <Link href="/dashboard/requests">{t("myRequests")}</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-semibold">{t("cardTitle")}</h2>
+        {!blocked && <p className="text-sm text-muted-foreground">{t("cardBody")}</p>}
+      </div>
+      {blocked ?? (
+        <RequestForm
+          listingId={l.id}
+          tenantTypes={l.tenant_types.map((type) => tEnum(`tenantType.${type as "family"}`))}
+          maxMembers={l.max_occupants}
+          seats={l.listing_type === "mess_seat" ? l.open_slots : null}
+          availableFrom={l.available_from}
+        />
+      )}
     </div>
   );
 }
