@@ -127,7 +127,10 @@
     "openRequestsCount": "{count, plural, =0 {No open requests} one {# open request} other {# open requests}}",
     "shortlistedForCount": "{count, plural, one {You are shortlisted for # ad. The landlord may call you.} other {You are shortlisted for # ads. The landlords may call you.}}",
     "newRequestsCount": "{count, plural, =0 {No new requests} one {# new request} other {# new requests}}",
-    "newBadge": "{count, plural, one {# new} other {# new}}"
+    "newBadge": "{count, plural, one {# new} other {# new}}",
+    "messages": "Messages",
+    "unreadBadge": "{count, plural, one {# unread} other {# unread}}",
+    "unreadMessagesCount": "{count, plural, one {# unread message} other {# unread messages}}"
   },
   "Profile": {
     "title": "Your profile",
@@ -217,7 +220,12 @@
     "requestLimit": "You have 10 open requests. Withdraw one in My requests to send another.",
     "requestDailyLimit": "You have sent 20 requests in the last 24 hours. Please try again tomorrow.",
     "seekerBanned": "This member's account is suspended, so you cannot shortlist them.",
-    "requestChanged": "This request has changed meanwhile. Reload the page."
+    "requestChanged": "This request has changed meanwhile. Reload the page.",
+    "threadClosed": "This request is closed, so new messages cannot be sent.",
+    "threadPaused": "This ad is not live right now, so messages are paused.",
+    "memberBanned": "This member's account is suspended, so you cannot write to them.",
+    "waitForReply": "Please wait for the landlord's reply before you write again.",
+    "messageRateLimit": "You are sending messages too fast. Please wait a few minutes."
   },
   "Footer": {
     "tagline": "Broker-free rentals for Bangladesh.",
@@ -988,7 +996,10 @@
     "moveIn": "Move-in date",
     "message": "Message",
     "untitledAd": "Untitled ad",
-    "postedBy": "Posted by {name}"
+    "postedBy": "Posted by {name}",
+    "unreadCount": "{count, plural, one {# new message} other {# new messages}}",
+    "openMessages": "Messages",
+    "writeMessage": "Write to the landlord"
   },
   "RequestForm": {
     "cardTitle": "Want to rent it?",
@@ -1020,7 +1031,8 @@
     "ownAdNew": "{count, plural, =0 {No new requests} one {# new request} other {# new requests}}",
     "sentOn": "Sent {date}",
     "pendingNote": "The landlord has not answered yet.",
-    "shortlistedNote": "The landlord shortlisted you and can now see your phone number. You can call them with the button above."
+    "shortlistedNote": "The landlord shortlisted you and can now see your phone number. You can call them with the button above.",
+    "messageLandlord": "Message the landlord"
   },
   "Inbox": {
     "title": "Requests inbox",
@@ -1071,6 +1083,64 @@
       "withdrawn": "Withdrawn by the member",
       "expired": "Expired"
     },
-    "memberSince": "Member since {date}"
+    "memberSince": "Member since {date}",
+    "unreadCount": "{count, plural, one {# new message} other {# new messages}}",
+    "openMessages": "Messages",
+    "writeMessage": "Write to the member"
+  },
+  "Thread": {
+    "title": "Request and messages",
+    "backSeeker": "My requests",
+    "backLandlord": "Requests for this ad",
+    "landlord": "Landlord",
+    "member": "Member",
+    "detailsSeeker": "What you sent",
+    "detailsLandlord": "Request details",
+    "openAd": "Open ad",
+    "messagesLabel": "Messages",
+    "loadEarlier": "Show earlier messages",
+    "loadingEarlier": "Loading...",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "newMessages": "New messages",
+    "newBelow": "New message",
+    "withRequest": "Sent with the request",
+    "sending": "Sending...",
+    "seen": "Seen",
+    "delivered": "Sent",
+    "empty": "No messages yet. Write the first one below.",
+    "eventSentYou": "You sent the request",
+    "eventSent": "{name} sent a request",
+    "eventShortlistedYou": "The landlord shortlisted you and can now see your phone number",
+    "eventShortlisted": "Shortlisted. The member's phone number is now shared with you",
+    "eventDeclined": "Declined: {reason}",
+    "eventDeclinedNoReason": "Declined",
+    "eventNote": "Note: {note}",
+    "eventWithdrawnYou": "You withdrew the request",
+    "eventWithdrawn": "The member withdrew the request",
+    "eventExpired": "The request expired",
+    "closedNote": "This request is closed, so new messages cannot be sent. You can still read the conversation.",
+    "pausedNote": "This ad is not live right now, so messages are paused.",
+    "memberBannedNote": "This member's account is suspended, so you cannot write to them.",
+    "waitNote": "You have sent {limit, number} messages. You can write again when the landlord replies.",
+    "leftNote": "{count, plural, one {You can send # more message until the landlord replies.} other {You can send # more messages until the landlord replies.}}",
+    "composeLabel": "Your message",
+    "placeholder": "Write a message",
+    "send": "Send",
+    "safetySeeker": "Visit the home and meet the owner before you pay anything. Never share an OTP or PIN.",
+    "safetyLandlord": "Never share an OTP or PIN. House Manager never asks for them."
+  },
+  "Conversations": {
+    "title": "Messages",
+    "subtitle": "Conversations about the requests you sent and the requests for your ads.",
+    "empty": "No messages yet. Open a request to write to the landlord or the member.",
+    "toRequests": "My requests",
+    "toInbox": "Requests inbox",
+    "landlord": "Landlord",
+    "member": "Member",
+    "yourRequest": "Your request",
+    "yourAd": "Request for your ad",
+    "you": "You: {text}",
+    "unread": "{count, plural, one {# unread message} other {# unread messages}}"
   }
 }

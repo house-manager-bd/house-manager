@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CircleAlert, Inbox, Star } from "lucide-react";
+import { ArrowLeft, CircleAlert, Inbox, MessagesSquare, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { getListingThreadCounts } from "@/lib/data/messages";
 import { getListingInbox, type InboxRequest } from "@/lib/data/requests";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import { cn, nameInitials } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSuccessStatic } from "@/components/ui/success-note";
+import { LiveRefresh } from "@/components/messages/live-refresh";
 import { PhoneLinks } from "@/components/requests/phone-links";
 import { RequestActions } from "@/components/requests/request-actions";
 import { RequestDetails } from "@/components/requests/request-details";
@@ -41,12 +44,13 @@ export default async function ListingRequestsPage({
   if (!UUID.test(listingId)) notFound();
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "new";
 
-  const [t, tEnum, locale, user, inbox] = await Promise.all([
+  const [t, tEnum, locale, user, inbox, threadCounts] = await Promise.all([
     getTranslations("Inbox"),
     getTranslations("Enums"),
     getLocale(),
     getCurrentUser(),
     getListingInbox(listingId),
+    getListingThreadCounts(listingId),
   ]);
   if (!user) return null;
   // Not the poster or a manager of the building (admins included).
@@ -66,6 +70,7 @@ export default async function ListingRequestsPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveRefresh />
       <Link
         href="/dashboard/inbox"
         className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
@@ -132,6 +137,8 @@ export default async function ListingRequestsPage({
           {shown.map((r) => {
             const name = r.seeker?.full_name || t("member");
             const shared = r.status === "shortlisted" || r.status === "offered";
+            const counts = threadCounts.get(r.id);
+            const open = r.status === "pending" || shared;
             return (
               <li key={r.id} id={`r-${r.id}`} className="scroll-mt-24">
                 <Card className="gap-4 py-5">
@@ -153,6 +160,12 @@ export default async function ListingRequestsPage({
                           {r.seeker?.is_banned && (
                             <Badge variant="outline" className="border-destructive/40 text-destructive">
                               {t("suspended")}
+                            </Badge>
+                          )}
+                          {counts && counts.unread_count > 0 && (
+                            <Badge className="bg-accent text-accent-foreground">
+                              <MessagesSquare className="size-3" aria-hidden />
+                              {t("unreadCount", { count: counts.unread_count })}
                             </Badge>
                           )}
                         </div>
@@ -183,6 +196,15 @@ export default async function ListingRequestsPage({
                           <p className="break-words whitespace-pre-line">{t("yourNote", { note: r.decline_note })}</p>
                         )}
                       </div>
+                    )}
+
+                    {(open || counts) && (
+                      <Button asChild size="sm" variant={counts && counts.unread_count > 0 ? "default" : "outline"} className="w-fit">
+                        <Link href={`/dashboard/requests/${r.id}`}>
+                          <MessagesSquare aria-hidden />
+                          {counts ? t("openMessages") : t("writeMessage")}
+                        </Link>
+                      </Button>
                     )}
 
                     <RequestActions

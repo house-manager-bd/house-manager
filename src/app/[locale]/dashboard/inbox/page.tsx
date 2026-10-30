@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, Building2, ImageOff, Inbox, Megaphone } from "lucide-react";
+import { ArrowRight, Building2, ImageOff, Inbox, Megaphone, MessagesSquare } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -10,6 +10,7 @@ import { photoUrl } from "@/lib/photos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LiveRefresh } from "@/components/messages/live-refresh";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Inbox");
@@ -30,6 +31,7 @@ export default async function InboxPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveRefresh />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">{t("title")}</h1>
         <p className="max-w-2xl text-muted-foreground">{t("subtitle")}</p>
@@ -71,6 +73,12 @@ export default async function InboxPage() {
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                     <div className="flex flex-wrap items-center gap-2">
                       {row.pending_count > 0 && <Badge variant="warning">{t("newCount", { count: row.pending_count })}</Badge>}
+                      {row.unread_count > 0 && (
+                        <Badge className="bg-accent text-accent-foreground">
+                          <MessagesSquare className="size-3" aria-hidden />
+                          {t("unreadCount", { count: row.unread_count })}
+                        </Badge>
+                      )}
                       {row.shortlisted_count > 0 && <Badge>{t("shortlistedCount", { count: row.shortlisted_count })}</Badge>}
                       {row.closed_count > 0 && <Badge variant="muted">{t("closedCount", { count: row.closed_count })}</Badge>}
                       {row.listing_status !== "active" && (
@@ -93,7 +101,7 @@ export default async function InboxPage() {
                       {t("lastRequest", { date: formatDateTime(row.last_request_at, locale) })}
                     </span>
                   </div>
-                  <Button asChild size="sm" variant={row.pending_count > 0 ? "default" : "outline"}>
+                  <Button asChild size="sm" variant={row.pending_count > 0 || row.unread_count > 0 ? "default" : "outline"}>
                     <Link
                       href={`/dashboard/ads/${row.listing_id}/requests${row.pending_count > 0 ? "" : row.shortlisted_count > 0 ? "?tab=shortlisted" : "?tab=closed"}`}
                     >

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CircleAlert, ImageOff, Search, Send, Star } from "lucide-react";
+import { CircleAlert, ImageOff, MessagesSquare, Search, Send, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LiveRefresh } from "@/components/messages/live-refresh";
 import { RequestDetails } from "@/components/requests/request-details";
 import { WithdrawButton } from "@/components/requests/withdraw-button";
 
@@ -46,6 +47,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/[loca
 
   return (
     <div className="flex flex-col gap-6">
+      <LiveRefresh />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -136,6 +138,12 @@ async function RequestCard({ request: r, area, locale }: { request: MyRequestRow
               {tEnum(`requestStatus.${r.status}`)}
             </Badge>
             <Badge variant="outline">{tEnum(`listingType.${r.listing_type}`)}</Badge>
+            {r.unread_count > 0 && (
+              <Badge className="bg-accent text-accent-foreground">
+                <MessagesSquare className="size-3" aria-hidden />
+                {t("unreadCount", { count: r.unread_count })}
+              </Badge>
+            )}
           </div>
           <h2 className="font-semibold break-words sm:text-lg">
             {live ? (
@@ -167,8 +175,16 @@ async function RequestCard({ request: r, area, locale }: { request: MyRequestRow
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <span className="text-sm text-muted-foreground">{t("sentOn", { date: formatDateTime(r.created_at, locale) })}</span>
           <div className="flex flex-wrap items-start gap-2">
+            {(isOpen(r) || r.message_count > 0) && (
+              <Button asChild size="sm" variant={r.unread_count > 0 ? "default" : "outline"}>
+                <Link href={`/dashboard/requests/${r.id}`}>
+                  <MessagesSquare aria-hidden />
+                  {r.message_count > 0 ? t("openMessages") : t("writeMessage")}
+                </Link>
+              </Button>
+            )}
             {live && (
-              <Button asChild size="sm" variant={r.status === "shortlisted" ? "default" : "outline"}>
+              <Button asChild size="sm" variant="outline">
                 <Link href={`/ads/${r.listing_id}`}>{t("openAd")}</Link>
               </Button>
             )}

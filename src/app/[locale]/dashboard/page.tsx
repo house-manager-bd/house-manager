@@ -1,10 +1,23 @@
 import type { Metadata } from "next";
-import { ArrowRight, Ban, Building2, Inbox, Megaphone, Search, Send, ShieldCheck, Sparkles, UserRoundPen } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  Building2,
+  Inbox,
+  Megaphone,
+  MessagesSquare,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRoundPen,
+} from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
 import { getAdminCounts } from "@/lib/data/admin";
 import { getMyListings } from "@/lib/data/listings";
+import { getUnreadMessageCount } from "@/lib/data/messages";
 import { getMyBuildings } from "@/lib/data/properties";
 import { getMyRequests, getNewRequestCount } from "@/lib/data/requests";
 import { OPEN_STATUSES } from "@/lib/validation/request";
@@ -12,6 +25,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModeSwitchButton } from "@/components/dashboard/mode-switch-button";
+import { LiveRefresh } from "@/components/messages/live-refresh";
 
 /** The project's contact address (shown to suspended members). */
 const SUPPORT_EMAIL = "housemanagerbd@gmail.com";
@@ -35,7 +49,10 @@ export default async function DashboardPage() {
     mode === "host"
       ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id), getNewRequestCount()])
       : [[], [], 0];
-  const myRequests = mode === "seek" ? await getMyRequests() : [];
+  const [myRequests, unreadMessages] = await Promise.all([
+    mode === "seek" ? getMyRequests() : Promise.resolve([]),
+    getUnreadMessageCount(),
+  ]);
   const openRequests = myRequests.filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status)).length;
   const shortlistedFor = myRequests.filter((r) => r.status === "shortlisted").length;
   const isAdmin = isAdminProfile(profile);
@@ -47,8 +64,17 @@ export default async function DashboardPage() {
   const profileIncomplete =
     !profile.full_name.trim() || !profile.avatar_url || !privateProfile?.phone;
 
+  // Shown in both modes: a landlord may also be looking for a place (F7).
+  const unreadLink = unreadMessages > 0 && (
+    <Link href="/dashboard/messages" className="flex items-center gap-2 font-semibold text-amber-800 hover:underline">
+      <MessagesSquare className="size-4 text-muted-foreground" aria-hidden />
+      {t("unreadMessagesCount", { count: unreadMessages })}
+    </Link>
+  );
+
   return (
     <div className="flex flex-col gap-6">
+      <LiveRefresh />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">
           {firstName ? t("welcome", { name: firstName }) : t("welcomeNoName")}
@@ -142,6 +168,7 @@ export default async function DashboardPage() {
                   <Inbox className="size-4 text-muted-foreground" aria-hidden />
                   {t("newRequestsCount", { count: newRequests })}
                 </Link>
+                {unreadLink}
               </div>
               <Button asChild className="w-fit">
                 <Link href="/post">
@@ -169,6 +196,7 @@ export default async function DashboardPage() {
                 {shortlistedFor > 0 && (
                   <p className="font-medium text-primary">{t("shortlistedForCount", { count: shortlistedFor })}</p>
                 )}
+                {unreadLink}
               </div>
               <Button asChild className="w-fit">
                 <Link href="/ads">

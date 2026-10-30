@@ -106,6 +106,19 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "seekerBanned";
     case "invalid_request":
       return "generic";
+    // F7 message threads
+    case "thread_closed":
+      return "threadClosed";
+    case "thread_paused":
+      return "threadPaused";
+    case "member_banned":
+      return "memberBanned";
+    case "wait_for_reply":
+      return "waitForReply";
+    case "message_rate_limit":
+      return "messageRateLimit";
+    case "invalid_message":
+      return "textTooLong";
   }
   switch (error?.code) {
     case "23505":

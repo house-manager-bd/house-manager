@@ -74,6 +74,8 @@ Rules:
 
 As built in F6: requests can be sent only for live ads, by members who are not banned and have a name and a mobile number on their profile (the landlord needs both). The form asks who will live there (family, bachelor male, bachelor female), how many people (at most the ad's maximum, and at most the seats on offer for a mess), occupation, a move-in date between today and a year ahead, and an optional message. Besides one open request per ad and 10 open requests, a member can send at most 20 requests in 24 hours (so withdrawing and sending again cannot flood landlords), and cannot ask again for an ad whose landlord declined them. The ad's poster and the managers of its building answer requests; admins can read requests but never answer them. Shortlisting works only while the ad is live and the member is not banned; declining needs a reason (the place is no longer available, a different kind of household, the move-in date does not suit, or another reason with a note), and the member sees it in their own language. A banned member can still withdraw, and a banned landlord can still decline: closing a request shares nothing. Expiry after 14 days without an answer comes with the scheduled job in F10.
 
+As built in F7: every request has one message thread on its page (`/dashboard/requests/id`), shared by the seeker and the ad's landlord side (the poster and the building's managers, who see each other's messages and are named in the thread). Nobody else can read it, admins included. The thread shows the request's own message first and the request's steps (sent, shortlisted, declined, withdrawn) at the time they happened. Messages can be written while the request is new or shortlisted (and offered or confirmed, from F8); declined, withdrawn and expired threads stay readable but closed. Writing pauses while the ad is hidden or rejected, a suspended member cannot write, and the landlord side cannot write to a suspended member. Until the landlord side answers (writes a message or shortlists), the seeker can add at most 3 messages, so a new request cannot become a stream of reminders. Each member can send at most 30 messages in 10 minutes; a message is 1 to 1000 characters of plain text (links are not clickable). New messages and "Seen" marks arrive live through Supabase Realtime, and pages also catch up on focus and every 15 seconds while the connection is down. Opening a thread marks the other side's messages as read; the unread number shows next to **Messages** in the menu (both modes, live), on the dashboard, on request cards and per ad in the requests inbox. The **Messages** page lists every conversation, newest first.
+
 ### 1.5 What is shared, and when
 Personal data is shared in stages. A fake ad must not be able to collect NID numbers from dozens of applicants, and the Personal Data Protection Act 2026 asks for minimum collection with consent.
 
@@ -205,7 +207,7 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Requests and tenancy**
 - `rental_requests`: id, listing_id, tenant_id, status (section 1.4), household_type (family, bachelor_male, bachelor_female), members_count, occupation, move_in_date, message, offer_expires_at, decline_reason (filled, household, move_in, other), decline_note, shortlisted_at, closed_at, created_at, updated_at. Readable by the seeker, the ad's poster and building managers, and admins; written only through the request functions (since F6).
-- `messages`: id, request_id, sender_id, body, created_at, read_at. Readable only by the two people on that request.
+- `messages`: id, request_id, sender_id, body (1 to 1000 characters), created_at, read_at (when the other side opened the thread). Readable only by the two sides of that request: the seeker, and the ad's poster and building managers (not admins). Written only through `send_message` and `mark_thread_read`, and sent live to both sides through the `supabase_realtime` publication (since F7).
 - `tenant_verifications`: request_id, tenant_id, nid_encrypted, nid_last4, photo_path (private bucket), permanent_address, consent_at, created_at. Readable only by the tenant and the listing's owner.
 - `tenancies`: id, unit_id, listing_id, request_id, landlord_id (the poster, so a subletting tenant is the landlord of their sub-tenant), tenant_id, start_date, monthly_rent, advance_amount, status (active, ended, cancelled), created_at. House Manage starts here.
 
@@ -221,11 +223,11 @@ Every table has Row Level Security. Public reads go through the `listings_public
 
 **Approximate pin:** when a building is added, the exact pin is rounded and moved by a random offset of up to about 250 metres. The offset is saved once, so the public pin never moves. If it changed on every page load, someone could average many loads and find the real spot.
 
-**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request` (F6, with the read-only `my_requests` for the seeker and `request_inbox` for the landlord), `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
+**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request` (F6, with the read-only `my_requests` for the seeker and `request_inbox` for the landlord), `send_message` and `mark_thread_read` (F7, with the read-only `thread_info`, `message_threads`, `unread_message_count` and `listing_thread_counts`), `make_offer`, `accept_offer`, `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
 
-**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status) and (tenant_id, created_at), one open request per seeker per ad (unique where pending, shortlisted or offered), listings (unit_id) (F6), messages (request_id, created_at).
+**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status) and (tenant_id, created_at), one open request per seeker per ad (unique where pending, shortlisted or offered), listings (unit_id) (F6), messages (request_id, created_at), unread messages per request and messages (sender_id, created_at) for the rate limit (F7).
 
-**Policies that scale (F6):** the request and phone policies use "listing_id in (select managed_listing_ids())" and "user_id in (select shortlisted_member_ids())", which Postgres works out once per query. A per-row check took over a second with 20,000 requests; this takes a few milliseconds.
+**Policies that scale (F6):** the request and phone policies use "listing_id in (select managed_listing_ids())" and "user_id in (select shortlisted_member_ids())", which Postgres works out once per query. A per-row check took over a second with 20,000 requests; this takes a few milliseconds. The messages policy (F7) uses "request_id in (select my_thread_ids())" the same way.
 
 ## 5. ER diagram
 
@@ -408,6 +410,8 @@ house-manager/
                 page.tsx
           inbox/
             page.tsx
+          messages/
+            page.tsx
           requests/
             page.tsx
             [id]/
@@ -511,8 +515,9 @@ Each feature is small enough to build, test and deploy on its own.
 - [x] **F6: Rental requests.** Send request form, "My requests", requests inbox per ad, shortlist, decline with reason, withdraw. Phone shared on shortlist. Request limits.
   Depends on F3.
   Done when: a member sends a request, the landlord shortlists it and sees the member's phone number, declines another with a reason the member sees, and the member withdraws a request, after which the landlord no longer sees the number.
-- [ ] **F7: Message thread.** One thread per request, live updates with Supabase Realtime, unread counts.
+- [x] **F7: Message thread.** One thread per request, live updates with Supabase Realtime, unread counts.
   Depends on F6.
+  Done when: a seeker and a landlord write to each other on one request, each sees the other's message appear without reloading, the unread number goes up in the other person's menu and back to zero when they open the thread, and the thread becomes read-only after the request is declined.
 - [ ] **F8: Offer and confirm.** Make offer (48 hours), accept with NID number, photo, permanent address and consent, NID encrypted on the server, tenancy created in one transaction, other requests auto-declined when full.
   Depends on F6.
   Done when: with two seekers on one flat, accepting the offer creates one tenancy, marks the ad rented, and declines the other seeker automatically.
@@ -582,6 +587,13 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-10-30 | Shortlisting only while the ad is live and the member is not banned; declining and withdrawing always allowed, even when banned | A hidden ad may belong to a broker, so no phone numbers go to it; closing a request shares nothing | Blocking every action on hidden ads or for banned members |
 | 2026-10-30 | My requests and the inbox come from two read-only database functions | A member's request must still show its ad's title after the ad is hidden or rented, without opening hidden ads to everyone who asked | Widening the listings policy for requesters |
 | 2026-10-30 | Landlords see the number of new requests in the menu and on the dashboard | Notifications only come in F9 | Nothing until F9 |
+| 2026-10-31 | One thread per request, on the request's own page, for both sides | The request is what the two people talk about, and F8's offer belongs on the same page | A separate chat per pair of members |
+| 2026-10-31 | The landlord side is one side: the poster and the building's managers read and write the same thread, and a read by any of them counts as read | Owners and caretakers share the work on a building (as in F6); the seeker sees who wrote | Separate threads per manager |
+| 2026-10-31 | Admins cannot read messages | The plan promises messages only to the two sides; a report-a-message feature can share one message with admins later | Admin access like requests |
+| 2026-10-31 | Open while new, shortlisted, offered or confirmed; read-only after decline, withdraw or expiry; paused while the ad is hidden or rejected | The two sides need to talk until move-in; a closed request or a possible scam ad should not keep collecting messages | Messages only after shortlisting |
+| 2026-10-31 | Before the landlord side answers, the seeker can add 3 messages; 30 messages per member in 10 minutes | A new request should not turn into a stream of reminders, and scripts cannot flood anyone | No limits |
+| 2026-10-31 | Live updates with Realtime Postgres Changes on the messages table, checked against its read policy; pages also catch up on focus and every 15 seconds while offline | Simplest setup on the free plan, reuses the RLS policy, and keeps working when the connection drops | Broadcast with private channels per member (Supabase's advice for thousands of listeners at once; the upgrade path if the site grows) |
+| 2026-10-31 | A Messages page and a live unread number in the menu, in both modes | A landlord who also looks for a place sees every conversation in one list; notifications only come in F9 | Unread numbers only on request pages |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
@@ -592,6 +604,8 @@ Each feature is small enough to build, test and deploy on its own.
 - Duplicate buildings: two people may add the same building (for example two subletting tenants). For the course, only the creator and owner see a building's units. For production, plan a claim and merge flow where the real owner claims an unclaimed building.
 - Reports from brand new accounts: three fresh accounts can hide any ad until an admin restores it. For production, consider counting only reports from accounts older than a day, or with a confirmed phone (F5 keeps the plan's rule).
 - Requests on an ad that stops being live (hidden, rejected, expired) stay open until the member withdraws or the landlord declines them. The F10 scheduled job could close them together with the 14 day expiry.
+- Realtime at scale: every open dashboard listens for message changes, and Supabase checks each change against each listener. Fine for the course; beyond a few hundred people online at once, move to Broadcast with one private channel per member.
+- Reporting a message: members cannot report an abusive message yet, and admins cannot read threads. Add a report button that shares that one message with admins (F12 or production).
 
 ---
 ## University sections
