@@ -1,6 +1,7 @@
 import { redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
+import { getUnreadMessageCount } from "@/lib/data/messages";
 import { getNewRequestCount } from "@/lib/data/requests";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 
@@ -27,8 +28,12 @@ export default async function DashboardLayout({
   }
   // Google sign-ups answer the mode question first.
   if (!profile.default_mode) return redirect({ href: "/onboarding", locale: lang });
-  // Landlords see how many requests wait for an answer (F6; no notifications until F9).
-  const newRequests = profile.default_mode === "host" ? await getNewRequestCount() : 0;
+  // Landlords see how many requests wait for an answer (F6), and everybody
+  // their unread messages (F7). Notifications come in F9.
+  const [newRequests, unreadMessages] = await Promise.all([
+    profile.default_mode === "host" ? getNewRequestCount() : Promise.resolve(0),
+    getUnreadMessageCount(),
+  ]);
 
   return (
     // grid-cols-1 is minmax(0, 1fr): without it the single phone column grew
@@ -39,6 +44,7 @@ export default async function DashboardLayout({
           mode={profile.default_mode}
           isAdmin={isAdminProfile(profile)}
           badges={{ requestsInbox: newRequests }}
+          unreadMessages={unreadMessages}
         />
       </aside>
       <div className="min-w-0">{children}</div>

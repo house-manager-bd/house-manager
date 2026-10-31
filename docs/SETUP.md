@@ -285,6 +285,11 @@ SQL Editor: `update public.profiles set is_admin = true where id = (select id fr
 Repeat for each team member after they sign up. Nobody can do this from the app.
 Admins see **Admin** in the avatar menu and the dashboard menu, which opens `/admin` (review queue, reports, members). Make at least two admins: nobody can approve their own ad. To remove an admin, run the same query with `false`.
 
+### 8.6 Live messages (F7)
+Message threads update live through Supabase Realtime. Nothing needs switching on by hand: the F7 migration adds the `messages` table to the `supabase_realtime` publication, which every Supabase project has. To check, open **Database**, **Publications**, `supabase_realtime`: `messages` is listed (do this on the demo project too).
+Leave **Project Settings**, **Realtime**, "private channels only" (or "Allow public access" switched on, depending on the dashboard version) as it is by default. The app listens on ordinary channels and relies on the table's read policy, so private-only mode would stop live updates. Pages still catch up when the window gets focus and every 15 seconds, so nothing is lost, only slower.
+The free plan allows 200 Realtime connections at once (each open tab is one), far above what the course needs.
+
 ---
 
 ## Final checklist

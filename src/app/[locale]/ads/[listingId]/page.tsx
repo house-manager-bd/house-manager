@@ -12,6 +12,7 @@ import {
   Inbox,
   Lock,
   MapPin,
+  MessagesSquare,
   Send,
   ShieldCheck,
   Star,
@@ -563,6 +564,12 @@ function RequestPanel({
         <p className={open.status === "shortlisted" ? "text-sm text-primary" : "text-sm text-muted-foreground"}>
           {open.status === "shortlisted" ? t("shortlistedNote") : t("pendingNote")}
         </p>
+        <Button asChild className="w-full">
+          <Link href={`/dashboard/requests/${open.id}`}>
+            <MessagesSquare aria-hidden />
+            {t("messageLandlord")}
+          </Link>
+        </Button>
         <Button asChild variant="outline" className="w-full">
           <Link href="/dashboard/requests">
             <Send aria-hidden />

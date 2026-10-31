@@ -6,6 +6,7 @@ import {
   Inbox,
   LayoutDashboard,
   Megaphone,
+  MessagesSquare,
   Search,
   Send,
   ShieldCheck,
@@ -18,6 +19,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AppMode } from "@/types/database";
+import { useUnreadCount } from "@/components/messages/use-unread-count";
 import { ModeSwitchButton } from "./mode-switch-button";
 
 type Item = {
@@ -29,6 +31,7 @@ type Item = {
     | "myProperties"
     | "myAds"
     | "requestsInbox"
+    | "messages"
     | "profile"
     | "admin";
   icon: LucideIcon;
@@ -42,6 +45,7 @@ const MENUS: Record<AppMode, Item[]> = {
     { key: "overview", icon: LayoutDashboard, href: "/dashboard" },
     { key: "searchAds", icon: Search, href: "/ads" },
     { key: "myRequests", icon: Send, href: "/dashboard/requests" },
+    { key: "messages", icon: MessagesSquare, href: "/dashboard/messages" },
     { key: "savedAds", icon: Heart, href: null }, // F10
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
@@ -50,6 +54,7 @@ const MENUS: Record<AppMode, Item[]> = {
     { key: "myProperties", icon: Building2, href: "/dashboard/properties" },
     { key: "myAds", icon: Megaphone, href: "/dashboard/ads" },
     { key: "requestsInbox", icon: Inbox, href: "/dashboard/inbox" },
+    { key: "messages", icon: MessagesSquare, href: "/dashboard/messages" },
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
 };
@@ -59,10 +64,13 @@ const ADMIN_ITEM: Item = { key: "admin", icon: ShieldCheck, href: "/admin" };
 
 /** One ad's requests (/dashboard/ads/id/requests) belong to the inbox, not to My ads. */
 const AD_REQUESTS = /^\/dashboard\/ads\/[^/]+\/requests$/;
+/** A request's thread (/dashboard/requests/id, F7): My requests for seekers, the inbox for landlords. */
+const THREAD = /^\/dashboard\/requests\/[^/]+$/;
 
-function isActive(key: Item["key"], href: string | null, pathname: string) {
+function isActive(key: Item["key"], href: string | null, pathname: string, mode: AppMode) {
   if (href === null) return false;
   if (AD_REQUESTS.test(pathname)) return key === "requestsInbox";
+  if (THREAD.test(pathname)) return key === (mode === "host" ? "requestsInbox" : "myRequests");
   return pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
 }
 
@@ -70,11 +78,14 @@ export function DashboardNav({
   mode,
   isAdmin = false,
   badges = {},
+  unreadMessages = 0,
 }: {
   mode: AppMode;
   isAdmin?: boolean;
   /** Counts shown next to menu items, such as new requests in the inbox (F6). */
   badges?: Partial<Record<Item["key"], number>>;
+  /** Unread messages when the page was rendered; kept live in the browser (F7). */
+  unreadMessages?: number;
 }) {
   const t = useTranslations("Dashboard");
   const tCommon = useTranslations("Common");
@@ -82,6 +93,7 @@ export function DashboardNav({
   const locale = useLocale();
   const pathname = usePathname();
   const listRef = useRef<HTMLUListElement>(null);
+  const unread = useUnreadCount(unreadMessages);
 
   // On phones the menu is one row that scrolls sideways. Bring the current
   // page's item into view, so "My ads" is not hidden off the right edge.
@@ -104,8 +116,8 @@ export function DashboardNav({
         className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
       >
         {(isAdmin ? [...MENUS[mode], ADMIN_ITEM] : MENUS[mode]).map(({ key, icon: Icon, href }) => {
-          const active = isActive(key, href, pathname);
-          const badge = badges[key] ?? 0;
+          const active = isActive(key, href, pathname, mode);
+          const badge = key === "messages" ? unread : (badges[key] ?? 0);
           const content = (
             <>
               <Icon className="size-4 shrink-0" aria-hidden />
@@ -116,7 +128,7 @@ export function DashboardNav({
                     "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
                     active ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground",
                   )}
-                  aria-label={t("newBadge", { count: badge })}
+                  aria-label={key === "messages" ? t("unreadBadge", { count: badge }) : t("newBadge", { count: badge })}
                 >
                   {formatNumber(badge, locale)}
                 </span>

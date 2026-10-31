@@ -1,4 +1,4 @@
-// Database types for the tables created so far (F1 to F6).
+// Database types for the tables created so far (F1 to F7).
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
@@ -318,6 +318,9 @@ export type MyRequestRow = Pick<
   cover_path: string | null;
   poster_name: string | null;
   posted_as: PostedAs;
+  /** F7: messages on this request, and how many the seeker has not read. */
+  message_count: number;
+  unread_count: number;
 };
 
 /** One row of public.request_inbox(): an ad the landlord manages, with request counts (F6). */
@@ -335,6 +338,95 @@ export type InboxRow = {
   shortlisted_count: number;
   closed_count: number;
   last_request_at: string;
+  /** F7: seekers' messages on this ad's requests that nobody on the landlord side has read. */
+  unread_count: number;
+};
+
+/** Which side of a request the signed-in member is on (F7). */
+export type ThreadSide = "seeker" | "landlord";
+
+/** Why a member cannot write in a thread right now (public.message_send_block, F7). */
+export type MessageSendBlock =
+  | "not_authenticated"
+  | "not_allowed"
+  | "banned"
+  | "thread_closed"
+  | "thread_paused"
+  | "member_banned"
+  | "wait_for_reply";
+
+export type MessageRow = {
+  id: string;
+  request_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
+/** One row of public.thread_info(): the thread page's header (F7). */
+export type ThreadInfoRow = Pick<
+  RentalRequestRow,
+  | "id"
+  | "listing_id"
+  | "tenant_id"
+  | "status"
+  | "household_type"
+  | "members_count"
+  | "occupation"
+  | "move_in_date"
+  | "message"
+  | "decline_reason"
+  | "decline_note"
+  | "shortlisted_at"
+  | "closed_at"
+  | "created_at"
+> & {
+  my_side: ThreadSide;
+  listing_title: string | null;
+  listing_type: ListingType;
+  listing_status: ListingStatus;
+  monthly_rent: number | null;
+  area_id: number;
+  cover_path: string | null;
+  poster_id: string | null;
+  poster_name: string | null;
+  poster_avatar: string | null;
+  posted_as: PostedAs;
+  seeker_name: string;
+  seeker_avatar: string | null;
+  seeker_since: string;
+  seeker_banned: boolean;
+  /** Only for the landlord side, once the seeker is shortlisted. */
+  seeker_phone: string | null;
+  send_block: MessageSendBlock | null;
+  /** The seeker's messages left before the landlord side answers; null when there is no limit. */
+  messages_left: number | null;
+};
+
+/** One row of public.message_threads(): the Messages page (F7). */
+export type MessageThreadRow = {
+  request_id: string;
+  my_side: ThreadSide;
+  request_status: RequestStatus;
+  listing_id: string;
+  listing_title: string | null;
+  listing_type: ListingType;
+  listing_status: ListingStatus;
+  other_name: string | null;
+  other_avatar: string | null;
+  last_body: string;
+  last_from_me: boolean;
+  last_at: string;
+  unread_count: number;
+};
+
+/** One row of public.listing_thread_counts() (F7). */
+export type ThreadCountRow = {
+  request_id: string;
+  message_count: number;
+  unread_count: number;
+  last_message_at: string;
 };
 
 /** One row of public.search_listings(): only what a visitor may see. */
@@ -420,6 +512,7 @@ export type Database = {
       moderation_actions: Table<ModerationActionRow>;
       moderation_words: Table<{ word: string; created_at: string }>;
       rental_requests: Table<RentalRequestRow>;
+      messages: Table<MessageRow>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -463,6 +556,13 @@ export type Database = {
       withdraw_request: { Args: { p_request_id: string }; Returns: undefined };
       my_requests: { Args: Record<string, never>; Returns: MyRequestRow[] };
       request_inbox: { Args: Record<string, never>; Returns: InboxRow[] };
+      /** F7 message threads. */
+      send_message: { Args: { p_request_id: string; p_body: string }; Returns: MessageRow };
+      mark_thread_read: { Args: { p_request_id: string }; Returns: number };
+      thread_info: { Args: { p_request_id: string }; Returns: ThreadInfoRow[] };
+      unread_message_count: { Args: Record<string, never>; Returns: number };
+      listing_thread_counts: { Args: { p_listing_id: string }; Returns: ThreadCountRow[] };
+      message_threads: { Args: Record<string, never>; Returns: MessageThreadRow[] };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
         Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };

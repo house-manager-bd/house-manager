@@ -26,6 +26,7 @@ export function RequestActions({
   canShortlist,
   basePath,
   tab,
+  returnTo,
 }: {
   requestId: string;
   status: RequestStatus;
@@ -33,6 +34,8 @@ export function RequestActions({
   /** This ad's inbox page, to go back to after an action. */
   basePath: string;
   tab: string;
+  /** Stay on this page after an action instead (the request's thread, F7). */
+  returnTo?: string;
 }) {
   const t = useTranslations("Inbox");
   const tEnum = useTranslations("Enums");
@@ -56,7 +59,9 @@ export function RequestActions({
       if (!result.ok) return setError(result.error);
       // Straight to the Shortlisted tab, where the phone number now shows.
       // No router.refresh: it would cancel this navigation (the action revalidated).
-      router.replace(`${basePath}?tab=shortlisted&done=shortlisted#r-${requestId}`, { scroll: false });
+      router.replace(returnTo ? `${returnTo}?done=shortlisted` : `${basePath}?tab=shortlisted&done=shortlisted#r-${requestId}`, {
+        scroll: false,
+      });
     });
   }
 
@@ -72,7 +77,7 @@ export function RequestActions({
         else setError(result.error);
         return;
       }
-      router.replace(`${basePath}?tab=${tab}&done=declined`, { scroll: false });
+      router.replace(returnTo ? `${returnTo}?done=declined` : `${basePath}?tab=${tab}&done=declined`, { scroll: false });
     });
   }
 
