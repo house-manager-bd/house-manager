@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowRight, Building2, ImageOff, Inbox, Megaphone, MessagesSquare } from "lucide-react";
+import { ArrowRight, BadgeCheck, Building2, Handshake, ImageOff, Inbox, Megaphone, MessagesSquare } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title"), robots: { index: false } };
 }
 
-/** "Requests inbox": every ad the landlord manages that has requests (F6). */
+/** "Requests inbox": every ad the landlord manages that has requests (F6), with offers and tenants (F8). */
 export default async function InboxPage() {
   const [t, tEnum, locale, user, tree, inbox] = await Promise.all([
     getTranslations("Inbox"),
@@ -31,7 +31,7 @@ export default async function InboxPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <LiveRefresh />
+      <LiveRefresh requests />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">{t("title")}</h1>
         <p className="max-w-2xl text-muted-foreground">{t("subtitle")}</p>
@@ -80,6 +80,18 @@ export default async function InboxPage() {
                         </Badge>
                       )}
                       {row.shortlisted_count > 0 && <Badge>{t("shortlistedCount", { count: row.shortlisted_count })}</Badge>}
+                      {row.offered_count > 0 && (
+                        <Badge variant="warning">
+                          <Handshake className="size-3" aria-hidden />
+                          {t("offeredCount", { count: row.offered_count })}
+                        </Badge>
+                      )}
+                      {row.confirmed_count > 0 && (
+                        <Badge variant="success">
+                          <BadgeCheck className="size-3" aria-hidden />
+                          {t("confirmedCount", { count: row.confirmed_count })}
+                        </Badge>
+                      )}
                       {row.closed_count > 0 && <Badge variant="muted">{t("closedCount", { count: row.closed_count })}</Badge>}
                       {row.listing_status !== "active" && (
                         <Badge variant="outline">{tEnum(`listingStatus.${row.listing_status}`)}</Badge>
@@ -103,7 +115,15 @@ export default async function InboxPage() {
                   </div>
                   <Button asChild size="sm" variant={row.pending_count > 0 || row.unread_count > 0 ? "default" : "outline"}>
                     <Link
-                      href={`/dashboard/ads/${row.listing_id}/requests${row.pending_count > 0 ? "" : row.shortlisted_count > 0 ? "?tab=shortlisted" : "?tab=closed"}`}
+                      href={`/dashboard/ads/${row.listing_id}/requests${
+                        row.pending_count > 0
+                          ? ""
+                          : row.shortlisted_count > 0
+                            ? "?tab=shortlisted"
+                            : row.confirmed_count > 0
+                              ? "?tab=confirmed"
+                              : "?tab=closed"
+                      }`}
                     >
                       {t("openRequests")}
                       <ArrowRight aria-hidden />

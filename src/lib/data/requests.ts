@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { OPEN_STATUSES } from "@/lib/validation/request";
+import { effectiveStatus, OPEN_STATUSES } from "@/lib/validation/request";
 import type { InboxRow, ListingRow, MyRequestRow, RentalRequestRow } from "@/types/database";
 
 // Loaders for F6 rental requests. They run as the signed-in member; Row
@@ -29,6 +29,18 @@ export async function getNewRequestCount(): Promise<number> {
   return inbox.reduce((sum, row) => sum + row.pending_count, 0);
 }
 
+/** Live offers waiting for the seeker's answer, for the menu badge and dashboard (F8). */
+export async function getMyOfferCount(userId: string): Promise<number> {
+  const supabase = await createClient();
+  const { count } = await supabase
+    .from("rental_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", userId)
+    .eq("status", "offered")
+    .gt("offer_expires_at", new Date().toISOString());
+  return count ?? 0;
+}
+
 /** How many open requests the seeker has (the limit is 10). */
 export async function getMyOpenRequestCount(userId: string): Promise<number> {
   const supabase = await createClient();
@@ -53,11 +65,14 @@ export async function getMyRequestForListing(listingId: string, userId: string) 
     .eq("tenant_id", userId)
     .order("created_at", { ascending: false })
     .limit(20);
-  const rows = data ?? [];
+  // An offer past its 48 hours counts as expired (F8).
+  const rows = (data ?? []).map((r) => ({ ...r, status: effectiveStatus(r) }));
   return {
     latest: rows[0] ?? null,
     open: rows.find((r) => (OPEN_STATUSES as readonly string[]).includes(r.status)) ?? null,
     declined: rows.find((r) => r.status === "declined") ?? null,
+    /** F8: already a tenant through this ad (a mess with seats left stays live). */
+    confirmed: rows.find((r) => r.status === "confirmed") ?? null,
   };
 }
 
@@ -74,7 +89,10 @@ export type RequestSeeker = {
 export type InboxRequest = RentalRequestRow & { seeker: RequestSeeker | null };
 
 export type ListingInbox = {
-  listing: Pick<ListingRow, "id" | "title" | "status" | "listing_type" | "monthly_rent" | "tenant_types" | "posted_by">;
+  listing: Pick<
+    ListingRow,
+    "id" | "title" | "status" | "listing_type" | "monthly_rent" | "tenant_types" | "posted_by" | "open_slots"
+  >;
   requests: InboxRequest[];
 };
 
@@ -89,7 +107,7 @@ export async function getListingInbox(listingId: string): Promise<ListingInbox |
     supabase.rpc("can_manage_listing", { p_listing_id: listingId }),
     supabase
       .from("listings")
-      .select("id, title, status, listing_type, monthly_rent, tenant_types, posted_by")
+      .select("id, title, status, listing_type, monthly_rent, tenant_types, posted_by, open_slots")
       .eq("id", listingId)
       .maybeSingle(),
   ]);
@@ -100,7 +118,11 @@ export async function getListingInbox(listingId: string): Promise<ListingInbox |
     .select("*")
     .eq("listing_id", listingId)
     .order("created_at", { ascending: false });
-  const rows = requests ?? [];
+  // An offer past its 48 hours counts as expired (F8), closed at its expiry.
+  const rows = (requests ?? []).map((r) => {
+    const status = effectiveStatus(r);
+    return status === r.status ? r : { ...r, status, closed_at: r.closed_at ?? r.offer_expires_at };
+  });
   const seekerIds = [...new Set(rows.map((r) => r.tenant_id))];
 
   const [{ data: profiles }, { data: phones }] = seekerIds.length

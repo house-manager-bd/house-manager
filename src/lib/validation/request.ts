@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestStatus } from "@/types/database";
 import { optionalText, requiredInt, requiredText } from "./common";
 
 // F6 rental requests. The database functions repeat every check
@@ -17,6 +18,19 @@ export const MOVE_IN_MAX_DAYS = 365;
 
 /** Statuses that still count as open (one per ad, 10 in total). */
 export const OPEN_STATUSES = ["pending", "shortlisted", "offered"] as const;
+
+/**
+ * The status as it is now: an offer past its 48 hours has expired (F8), even
+ * before the database writes it. The database's read functions do the same
+ * (effective_request_status); this is for rows read from the table itself.
+ */
+export function effectiveStatus(
+  r: { status: RequestStatus; offer_expires_at: string | null },
+  now = Date.now(),
+): RequestStatus {
+  if (r.status === "offered" && r.offer_expires_at && Date.parse(r.offer_expires_at) <= now) return "expired";
+  return r.status;
+}
 
 /** Today in Dhaka as YYYY-MM-DD (the database uses the same date). */
 export function dhakaToday(now = new Date()) {

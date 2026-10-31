@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CircleAlert, Inbox, MessagesSquare, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CircleAlert, Handshake, Inbox, MessagesSquare, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getListingThreadCounts } from "@/lib/data/messages";
 import { getListingInbox, type InboxRequest } from "@/lib/data/requests";
-import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { formatDate, formatDateTime, formatNumber, formatTaka } from "@/lib/format";
 import { cn, nameInitials } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -20,12 +20,13 @@ import { RequestActions } from "@/components/requests/request-actions";
 import { RequestDetails } from "@/components/requests/request-details";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TABS = ["new", "shortlisted", "closed"] as const;
+const TABS = ["new", "shortlisted", "confirmed", "closed"] as const;
 type Tab = (typeof TABS)[number];
 
 function tabOf(r: InboxRequest): Tab {
   if (r.status === "pending") return "new";
   if (r.status === "shortlisted" || r.status === "offered") return "shortlisted";
+  if (r.status === "confirmed") return "confirmed";
   return "closed";
 }
 
@@ -34,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("adTitle"), robots: { index: false } };
 }
 
-/** One ad's requests for its landlord: shortlist or decline (F6). */
+/** One ad's requests for its landlord: shortlist or decline (F6), offers and tenants (F8). */
 export default async function ListingRequestsPage({
   params,
   searchParams,
@@ -44,9 +45,10 @@ export default async function ListingRequestsPage({
   if (!UUID.test(listingId)) notFound();
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "new";
 
-  const [t, tEnum, locale, user, inbox, threadCounts] = await Promise.all([
+  const [t, tEnum, tOffer, locale, user, inbox, threadCounts] = await Promise.all([
     getTranslations("Inbox"),
     getTranslations("Enums"),
+    getTranslations("Offer"),
     getLocale(),
     getCurrentUser(),
     getListingInbox(listingId),
@@ -63,14 +65,26 @@ export default async function ListingRequestsPage({
   const basePath = `/dashboard/ads/${listing.id}/requests`;
   const tabs = TABS.map((key) => ({
     key,
-    label: t(key === "new" ? "tabNew" : key === "shortlisted" ? "tabShortlisted" : "tabClosed"),
+    label: t(key === "new" ? "tabNew" : key === "shortlisted" ? "tabShortlisted" : key === "confirmed" ? "tabConfirmed" : "tabClosed"),
     count: count(key),
     href: key === "new" ? basePath : `${basePath}?tab=${key}`,
   }));
 
+  const liveOffers = requests.filter((r) => r.status === "offered").length;
+  // Places a request takes (its people for a mess, otherwise the whole place),
+  // and the places live offers already hold. The same rule as make_offer.
+  const seatsOf = (r: InboxRequest) => (listing.listing_type === "mess_seat" ? r.members_count : 1);
+  const seatsOffered = requests.filter((r) => r.status === "offered").reduce((sum, r) => sum + seatsOf(r), 0);
+  /** Why an offer cannot be made to this shortlisted request now, or null when it can. */
+  const offerBlock = (r: InboxRequest): "notEnoughSeats" | "offerLimit" | null => {
+    if (seatsOf(r) > listing.open_slots) return "notEnoughSeats";
+    if (seatsOffered + seatsOf(r) > listing.open_slots) return "offerLimit";
+    return null;
+  };
+
   return (
     <div className="flex flex-col gap-6">
-      <LiveRefresh />
+      <LiveRefresh requests />
       <Link
         href="/dashboard/inbox"
         className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
@@ -89,6 +103,12 @@ export default async function ListingRequestsPage({
         <p className="text-sm text-muted-foreground">
           {t("adIsFor", { types: listing.tenant_types.map((x) => tEnum(`tenantType.${x as "family"}`)).join(", ") })}
         </p>
+        {(live || liveOffers > 0) && (
+          <p className="text-sm text-muted-foreground">
+            {listing.listing_type === "mess_seat" && <>{tOffer("seatsLeft", { count: listing.open_slots })} · </>}
+            {tOffer("offersWaiting", { count: liveOffers })}
+          </p>
+        )}
       </div>
 
       {query.done === "shortlisted" && <FormSuccessStatic title={t("doneShortlisted")} />}
@@ -128,7 +148,13 @@ export default async function ListingRequestsPage({
               <Inbox className="size-6" aria-hidden />
             </span>
             <p className="text-muted-foreground">
-              {tab === "new" ? t("emptyNew") : tab === "shortlisted" ? t("emptyShortlisted") : t("emptyClosed")}
+              {tab === "new"
+                ? t("emptyNew")
+                : tab === "shortlisted"
+                  ? t("emptyShortlisted")
+                  : tab === "confirmed"
+                    ? t("emptyConfirmed")
+                    : t("emptyClosed")}
             </p>
           </CardContent>
         </Card>
@@ -136,9 +162,11 @@ export default async function ListingRequestsPage({
         <ul className="flex flex-col gap-3">
           {shown.map((r) => {
             const name = r.seeker?.full_name || t("member");
-            const shared = r.status === "shortlisted" || r.status === "offered";
+            const shared = r.status === "shortlisted" || r.status === "offered" || r.status === "confirmed";
             const counts = threadCounts.get(r.id);
-            const open = r.status === "pending" || shared;
+            const open = r.status === "pending" || r.status === "shortlisted" || r.status === "offered";
+            const canOffer = r.status === "shortlisted" && live && !r.seeker?.is_banned;
+            const block = canOffer ? offerBlock(r) : null;
             return (
               <li key={r.id} id={`r-${r.id}`} className="scroll-mt-24">
                 <Card className="gap-4 py-5">
@@ -152,9 +180,17 @@ export default async function ListingRequestsPage({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold break-words">{name}</span>
                           <Badge
-                            variant={r.status === "pending" ? "warning" : r.status === "shortlisted" ? "success" : "muted"}
+                            variant={
+                              r.status === "pending" || r.status === "offered"
+                                ? "warning"
+                                : r.status === "shortlisted" || r.status === "confirmed"
+                                  ? "success"
+                                  : "muted"
+                            }
                           >
                             {r.status === "shortlisted" && <Star className="size-3" aria-hidden />}
+                            {r.status === "offered" && <Handshake className="size-3" aria-hidden />}
+                            {r.status === "confirmed" && <BadgeCheck className="size-3" aria-hidden />}
                             {t(`status.${r.status}`)}
                           </Badge>
                           {r.seeker?.is_banned && (
@@ -189,6 +225,25 @@ export default async function ListingRequestsPage({
                       </div>
                     )}
 
+                    {r.status === "offered" && r.offer_expires_at && r.offer_rent !== null && (
+                      <p className="flex items-start gap-1.5 rounded-md bg-accent/10 px-3 py-2 text-sm text-amber-800">
+                        <Handshake className="mt-0.5 size-4 shrink-0" aria-hidden />
+                        {tOffer("offerSentNote", {
+                          rent: formatTaka(r.offer_rent, locale),
+                          date: formatDateTime(r.offer_expires_at, locale),
+                        })}
+                      </p>
+                    )}
+                    {r.status === "confirmed" && r.offer_start_date && (
+                      <p className="flex items-start gap-1.5 rounded-md bg-primary/5 px-3 py-2 text-sm text-primary">
+                        <BadgeCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+                        {tOffer("tenantFrom", { date: formatDate(r.offer_start_date, locale) })}
+                      </p>
+                    )}
+                    {r.status === "expired" && r.offered_at && (
+                      <p className="text-sm text-muted-foreground">{tOffer("offerExpiredNote")}</p>
+                    )}
+
                     {r.status === "declined" && r.decline_reason && (
                       <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                         <p>{t("declinedWith", { reason: tEnum(`declineReason.${r.decline_reason}`) })}</p>
@@ -198,14 +253,37 @@ export default async function ListingRequestsPage({
                       </div>
                     )}
 
-                    {(open || counts) && (
-                      <Button asChild size="sm" variant={counts && counts.unread_count > 0 ? "default" : "outline"} className="w-fit">
-                        <Link href={`/dashboard/requests/${r.id}`}>
-                          <MessagesSquare aria-hidden />
-                          {counts ? t("openMessages") : t("writeMessage")}
-                        </Link>
-                      </Button>
+                    {block && (
+                      <p className="text-sm text-muted-foreground">
+                        {tOffer(block, { count: listing.open_slots, seats: seatsOf(r) })}
+                      </p>
                     )}
+                    <div className="flex flex-wrap gap-2">
+                      {canOffer && !block && (
+                        <Button asChild size="sm">
+                          <Link href={`/dashboard/requests/${r.id}?offer=open`}>
+                            <Handshake aria-hidden />
+                            {tOffer("make")}
+                          </Link>
+                        </Button>
+                      )}
+                      {r.status === "confirmed" && (
+                        <Button asChild size="sm">
+                          <Link href={`/dashboard/requests/${r.id}#tenancy`}>
+                            <BadgeCheck aria-hidden />
+                            {tOffer("tenantDetails")}
+                          </Link>
+                        </Button>
+                      )}
+                      {(open || counts || r.status === "confirmed") && (
+                        <Button asChild size="sm" variant={counts && counts.unread_count > 0 ? "default" : "outline"} className="w-fit">
+                          <Link href={`/dashboard/requests/${r.id}`}>
+                            <MessagesSquare aria-hidden />
+                            {counts ? t("openMessages") : t("writeMessage")}
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
 
                     <RequestActions
                       requestId={r.id}

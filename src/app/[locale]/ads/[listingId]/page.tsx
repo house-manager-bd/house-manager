@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
+  BadgeCheck,
   CalendarDays,
   ChevronRight,
   CircleAlert,
@@ -9,6 +10,7 @@ import {
   EyeOff,
   Flag,
   Footprints,
+  Handshake,
   Inbox,
   Lock,
   MapPin,
@@ -549,7 +551,30 @@ function RequestPanel({
   tErrors: Awaited<ReturnType<typeof getTranslations<"Errors">>>;
 }) {
   const open = myRequest?.open;
+  // F8: a member who already rents here (a mess with seats left stays live).
+  const confirmed = myRequest?.confirmed;
+  if (confirmed && !open) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">{t("statusTitle")}</h2>
+          <Badge variant="success">
+            <BadgeCheck className="size-3" aria-hidden />
+            {tEnum("requestStatus.confirmed")}
+          </Badge>
+        </div>
+        <p className="text-sm text-primary">{t("confirmedNote")}</p>
+        <Button asChild className="w-full">
+          <Link href={`/dashboard/requests/${confirmed.id}#tenancy`}>
+            <BadgeCheck aria-hidden />
+            {t("seeTenancy")}
+          </Link>
+        </Button>
+      </div>
+    );
+  }
   if (open) {
+    const offered = open.status === "offered";
     return (
       <div className="flex flex-col gap-3">
         {justSent && <FormSuccessStatic title={t("sentTitle")} body={t("sentBody")} />}
@@ -557,14 +582,31 @@ function RequestPanel({
           <h2 className="font-semibold">{t("statusTitle")}</h2>
           <Badge variant={open.status === "shortlisted" ? "success" : "warning"}>
             {open.status === "shortlisted" && <Star className="size-3" aria-hidden />}
+            {offered && <Handshake className="size-3" aria-hidden />}
             {tEnum(`requestStatus.${open.status}`)}
           </Badge>
         </div>
         <p className="text-sm text-muted-foreground">{t("sentOn", { date: formatDateTime(open.created_at, locale) })}</p>
-        <p className={open.status === "shortlisted" ? "text-sm text-primary" : "text-sm text-muted-foreground"}>
-          {open.status === "shortlisted" ? t("shortlistedNote") : t("pendingNote")}
+        <p
+          className={
+            offered ? "text-sm font-medium text-amber-800" : open.status === "shortlisted" ? "text-sm text-primary" : "text-sm text-muted-foreground"
+          }
+        >
+          {offered && open.offer_expires_at
+            ? t("offeredNote", { date: formatDateTime(open.offer_expires_at, locale) })
+            : open.status === "shortlisted"
+              ? t("shortlistedNote")
+              : t("pendingNote")}
         </p>
-        <Button asChild className="w-full">
+        {offered && (
+          <Button asChild className="w-full">
+            <Link href={`/dashboard/requests/${open.id}#offer`}>
+              <Handshake aria-hidden />
+              {t("seeOffer")}
+            </Link>
+          </Button>
+        )}
+        <Button asChild className="w-full" variant={offered ? "outline" : "default"}>
           <Link href={`/dashboard/requests/${open.id}`}>
             <MessagesSquare aria-hidden />
             {t("messageLandlord")}
