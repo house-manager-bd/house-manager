@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { decryptNid, encryptNid, nidKeyReady } from "@/lib/crypto/nid";
+import { sendNotificationEmailsLater } from "@/lib/email/deliver";
 import { createClient } from "@/lib/supabase/server";
 import {
   acceptOfferSchema,
@@ -39,6 +40,7 @@ export async function makeOffer(input: MakeOfferInput): Promise<ActionResult<{ e
   });
   if (error || !data) return { ok: false, error: offerErrorKey(error) };
   revalidatePath("/[locale]", "layout");
+  sendNotificationEmailsLater();
   return { ok: true, data: { expiresAt: data } };
 }
 
@@ -90,6 +92,8 @@ export async function acceptOffer(input: AcceptOfferInput): Promise<ActionResult
     return { ok: false, error: offerErrorKey(error) };
   }
   revalidatePath("/[locale]", "layout");
+  // The landlord side hears about it; everybody declined because the place is full too (F9).
+  sendNotificationEmailsLater();
   return { ok: true, data: { tenancyId: data } };
 }
 

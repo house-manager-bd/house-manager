@@ -139,6 +139,29 @@ Planned House Manage modules, for its own planning round:
 - Maintenance requests
 - Building community: notice board, group chat, help posts, emergency alerts
 
+### 1.10 Notifications (as built in F9)
+Members hear about the steps that need them, in the app and by email (FR29).
+
+| What happened | Who is told |
+|---|---|
+| A member sent a request | The ad's landlord side (poster and the building's managers) |
+| The landlord shortlisted the request (the phone is now shared) | The member |
+| The request was declined, by the landlord or automatically because the place is taken | The member, with the reason |
+| An offer arrived, with its rent and its 48 hour deadline | The member |
+| The landlord side took the offer back | The member, with the reason |
+| The member accepted, so the tenancy is confirmed | The landlord side |
+| The member turned the offer down | The landlord side |
+| Nobody answered the offer in 48 hours | Both sides |
+| An admin approved, rejected, hid or restored the ad (or three reports hid it) | The poster |
+
+Nobody is told about their own action, and withdrawing a new or shortlisted request tells nobody (it simply leaves the inbox). A suspended member gets the suspension notice, not one notification per hidden ad. Messages keep their own unread number (F7) and do not create notifications.
+
+How it works: triggers on `rental_requests` and `listings` write each notification in the same transaction as the change, so no code path can forget one, and each copies what its text needs at that moment (the ad's title and type, the member's name, the offer's rent and deadline, the decline reason code). The text itself is in `messages/*.json`, so a member reads it in their language: the page in the language they browse in, emails in the language saved on their profile. Free text (a decline note, a rejection reason) is never copied; the notification links to the page that shows it.
+
+In the app, a bell in the header shows the unread number, live through Realtime. The bell opens **Notifications** (`/dashboard/notifications`), newest first, 30 a page. Opening one marks it read and goes to its request, the ad's page (approved, restored) or **My ads** (rejected, hidden). Opening a request's page from anywhere marks that request's notifications read, and **Mark all as read** clears the rest.
+
+By email: every notification also waits in an outbox (`notification_emails`). Right after the action that caused it, the Next.js server (Next.js `after`, so nobody waits) takes up to 20 waiting emails at a time with `claim_notification_emails`, sends them through the project Gmail's SMTP (nodemailer) and records the result. The claim needs the email worker secret, whose SHA-256 hash is in the database (`private.email_worker`), so the app still has no Supabase secret key. Several servers at once never send the same email (skip locked). A failed email is tried again after 5 minutes with the next action, at most 3 times; emails older than 24 hours are dropped. Emails carry no private details (no address, phone or NID), only what happened and a link, plus a note that House Manager never asks for passwords, OTPs or PINs. Members can turn emails off on the Notifications page (the link is in every email); in-app notifications stay.
+
 ## 2. Stack decision and justification
 
 What this app needs: public ad pages that Google and Facebook can read, relational data (listings, requests, tenancies), login, photo uploads, a light realtime message thread, strict privacy rules, two languages, free hosting, a team of five students, and a backend a future Flutter app can reuse.
@@ -220,14 +243,17 @@ Every table has Row Level Security. Public reads go through the `listings_public
 - `moderation_words`: word, created_at. Words that send an ad to review. Readable by admins, changed in the SQL Editor (since F5).
 - `contact_reveals`: id, user_id, listing_id, created_at. Limits phone reveals to 20 a day per member and flags scrapers.
 - `saved_listings`: user_id, listing_id, created_at.
-- `notifications`: id, user_id, type, data (json), read_at, created_at.
+- `notifications`: id, user_id, type (request_new, request_shortlisted, request_declined, offer_received, offer_taken_back, offer_accepted, offer_turned_down, offer_expired, ad_approved, ad_rejected, ad_hidden, ad_restored), request_id, listing_id, data (json: the ad's title and type, the member's name, rent, deadline, reason, side), read_at, created_at. Readable only by its member, live through the `supabase_realtime` publication; written only by the request and listing triggers, marked read through `mark_notifications_read` (since F9).
+- `notification_emails` (F9): notification_id, status (pending, sending, sent, skipped, failed), attempts, claimed_at, sent_at, last_error, created_at. The email outbox; no member can read it.
+- `notification_settings` (F9): user_id, email_enabled, updated_at. No row means emails on. Changed through `set_email_notifications`.
+- `private.email_worker` (F9): the SHA-256 hash of the email worker secret, in a schema the API does not expose.
 - `viewing_slots` (F11): id, listing_id, starts_at, ends_at, booked_request_id.
 
 **Approximate pin:** when a building is added, the exact pin is rounded and moved by a random offset of up to about 250 metres. The offset is saved once, so the public pin never moves. If it changed on every page load, someone could average many loads and find the real spot.
 
-**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request` (F6, with the read-only `my_requests` for the seeker and `request_inbox` for the landlord), `send_message` and `mark_thread_read` (F7, with the read-only `thread_info`, `message_threads`, `unread_message_count` and `listing_thread_counts`), `make_offer` and `accept_offer` (F8, with `expire_offers` for the scheduled job and `effective_request_status`, which every read uses so an offer past 48 hours shows as expired at once), `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
+**Database functions (called with `supabase.rpc`, each one checks the current status and the caller):** `submit_listing` (since F5 it runs the automatic checks and returns "active" or "pending_review"), `reopen_listing` (F5), `relist_unit`, `send_request`, `shortlist_request`, `decline_request`, `withdraw_request` (F6, with the read-only `my_requests` for the seeker and `request_inbox` for the landlord), `send_message` and `mark_thread_read` (F7, with the read-only `thread_info`, `message_threads`, `unread_message_count` and `listing_thread_counts`), `make_offer` and `accept_offer` (F8, with `expire_offers` for the scheduled job and `effective_request_status`, which every read uses so an offer past 48 hours shows as expired at once), `mark_notifications_read`, `set_email_notifications` and the read-only `unread_notification_count` (F9, with `claim_notification_emails` and `finish_notification_emails` for the email worker, which check its secret), `report_listing`, `reveal_contact`, the admin functions `moderate_listing`, `set_user_ban` and `admin_list_users` (F5, each checks `is_admin()`), and the read-only `search_listings` (since F4: live ads only, public columns only, filters, sort, pages and map bounds in one call). A scheduled job expires old requests, offers and ads. Admins (`is_admin()`, not banned) can read every ad, its building, address and numbers through RLS (since F5).
 
-**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status) and (tenant_id, created_at), one open request per seeker per ad (unique where pending, shortlisted or offered), listings (unit_id) (F6), messages (request_id, created_at), unread messages per request and messages (sender_id, created_at) for the rate limit (F7), live offers per ad (listing_id, offer_expires_at) where offered, tenancies (unit_id, status), (listing_id), (tenant_id, created_at) and (landlord_id, created_at) (F8).
+**Key indexes:** buildings (area_id), buildings (approx_lat, approx_lng), units (building_id, status), listings (status, monthly_rent), listings (unit_id) unique where status is active, GIN on tenant_types and building amenities, listings (published_at) where status is active, pg_trgm for spelling variants of area names (F4), rental_requests (listing_id, status) and (tenant_id, created_at), one open request per seeker per ad (unique where pending, shortlisted or offered), listings (unit_id) (F6), messages (request_id, created_at), unread messages per request and messages (sender_id, created_at) for the rate limit (F7), live offers per ad (listing_id, offer_expires_at) where offered, tenancies (unit_id, status), (listing_id), (tenant_id, created_at) and (landlord_id, created_at) (F8), notifications (user_id, created_at), unread notifications per member, (request_id) and (listing_id), waiting emails (created_at) (F9).
 
 **Policies that scale (F6):** the request and phone policies use "listing_id in (select managed_listing_ids())" and "user_id in (select shortlisted_member_ids())", which Postgres works out once per query. A per-row check took over a second with 20,000 requests; this takes a few milliseconds. The messages policy (F7) uses "request_id in (select my_thread_ids())" the same way, and the NID policy (F8) "request_id in (select managed_confirmed_request_ids())".
 
@@ -523,7 +549,9 @@ Each feature is small enough to build, test and deploy on its own.
 - [x] **F8: Offer and confirm.** Make offer (48 hours), accept with NID number, photo, permanent address and consent, NID encrypted on the server, tenancy created in one transaction, other requests auto-declined when full.
   Depends on F6.
   Done when: with two seekers on one flat, accepting the offer creates one tenancy, marks the ad rented, and declines the other seeker automatically.
-- [ ] **F9: Notifications.** In-app bell plus email for new request, shortlisted, offer, confirmed, declined, ad approved or rejected.
+- [x] **F9: Notifications.** In-app bell plus email for new request, shortlisted, offer, confirmed, declined, ad approved or rejected (section 1.10).
+  Depends on F5 to F8.
+  Done when: a member sends a request and the landlord's bell shows it at once, the landlord shortlists it and makes an offer, and the member gets both in the app (live) and by email in their own language, with links to the request; opening a notification marks it read, and a member who turns emails off still sees notifications in the app but gets no more emails.
 - [ ] **F10: Managing ads and properties.** Edit, pause, renew, 30-day expiry with reminder, mark as rented manually, re-list a vacant unit with details and photos pre-filled, add a caretaker to a building, saved ads.
 - [ ] **F11: Viewing slots.** Landlord adds time slots, a shortlisted seeker books one.
 - [ ] **F12: Polish.** Sitemap, structured data, Lighthouse pass, accessibility check, keep-alive workflow, Playwright tests for the request-to-tenancy flow.
@@ -608,6 +636,17 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-11-01 | The automatic decline uses the "no longer available" reason, with no separate message | Each member reads it in their own language, and the thread already shows the step | A system message in every thread |
 | 2026-11-01 | Only a rented ad can have 0 places (database check) | Drafts are edited directly, so the check keeps a draft from being set to 0 | No lower bound |
 | 2026-11-01 | `rental_requests` joins the Realtime publication; the request page, the lists and the dashboards refresh on changes | An offer or an acceptance shows on the other side's open page at once, through the same read policy | Polling only |
+| 2026-11-02 | Notifications are written by triggers on `rental_requests` and `listings`, in the same transaction as the change | Every path that changes a request or an ad (the request functions, `accept_offer`'s automatic declines, `expire_offers`, moderation, three reports) notifies without each function having to remember it | A call in every database function, notifications written by the app server |
+| 2026-11-02 | A notification stores a type and the values its text needs; the sentence comes from `messages/*.json` | The member reads it in their own language, and changing a sentence needs no migration | Storing finished sentences in one language |
+| 2026-11-02 | Notification types are text with a check, not an enum | Later features (F10's expiry reminders, F11's viewing slots) add types with one constraint change | A Postgres enum |
+| 2026-11-02 | Emails go from an outbox through the Next.js server (nodemailer, the project Gmail's SMTP), right after the action (`after`); the server claims emails with its own worker secret, whose hash is in the database | No Supabase secret key in the app (a leaked worker secret can only send waiting notification emails), the same Gmail as the auth emails, and the member never waits for SMTP | The Supabase secret key on Vercel; a Supabase Edge Function with a database webhook (more parts for the team to deploy); Resend or Brevo (need a domain) |
+| 2026-11-02 | No email older than 24 hours is sent; a failed email is tried 3 times | A late "you have an offer" is misleading, and a wrong password must not resend old news once fixed | Sending everything whenever the setup is ready |
+| 2026-11-02 | Emails say what happened and link to the page, without addresses, phone numbers, NID or free text | Email is less private than the app, and free text written in one language would mix languages | Full details in the email |
+| 2026-11-02 | One email switch per member (on by default), on the Notifications page and linked from every email | Simple, and a member can always stop emails | A switch per type (later, if members ask) |
+| 2026-11-02 | The bell lives in the header and opens a Notifications page; no dropdown and no menu item | Visible on every page in both modes, and a page works the same on phones and computers | A dropdown list, a dashboard menu item |
+| 2026-11-02 | Opening a request's page marks its notifications read | The member has seen the news there, whichever way they came | Only marking read from the bell |
+| 2026-11-02 | Expiry is told to both sides, whoever's action wrote it | Nobody chose it, and the landlord needs to offer the place to someone else | Treating it like the writer's own action |
+| 2026-11-02 | New messages do not create notifications | Messages already have a live unread number (F7), and an email per message would be noise | A notification per message |
 
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
@@ -623,6 +662,11 @@ Each feature is small enough to build, test and deploy on its own.
 - Cancelling a confirmed tenancy before move-in (section 1.5: the NID data and photo are deleted then). Not built in F8, so a confirmation cannot be undone in the app; the team can delete a test tenancy in the SQL Editor (docs/testing/F8.md, Query 6). Plan it with F10 (re-listing) or House Manage (ending tenancies), including what happens to the ad and the requests that were declined automatically.
 - On a mess, a request for more people than the seats left stays open after other seats are taken; the landlord sees why no offer can be made and can decline it. Declining it automatically would also stop the member from asking again with fewer people.
 - Account deletion: tenancies keep both profiles (deleting them is blocked). When account deletion is built, decide what happens to tenancies and NID data (PDPA 2026).
+- Notifications are kept for good. The F10 scheduled job could delete read notifications (and finished email rows) older than 90 days.
+- Until F10's scheduled job runs `expire_offers()`, "the offer expired" is written (and told) the next time someone touches that ad, which may be later than 48 hours.
+- Emails go out only after an action on the site. One that failed waits for the next action (or is dropped after 24 hours); F10's scheduled job could also send waiting emails.
+- Gmail's limit (about 500 emails a day) and spam filtering are fine for the course; production needs a domain and Resend or Brevo (SETUP.md 6.2 and 8.8).
+- New messages are not emailed. If members miss replies, consider one email when a thread gets its first unread message after a quiet day.
 
 ---
 ## University sections

@@ -7,7 +7,7 @@ export function Logo() {
   return (
     <Link
       href="/"
-      className="flex items-center gap-2 rounded-md font-semibold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      className="flex items-center gap-1.5 rounded-md font-semibold text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:gap-2"
     >
       <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
         <House className="size-4.5" aria-hidden />

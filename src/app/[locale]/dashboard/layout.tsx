@@ -30,7 +30,7 @@ export default async function DashboardLayout({
   if (!profile.default_mode) return redirect({ href: "/onboarding", locale: lang });
   // Landlords see how many requests wait for an answer (F6), seekers how many
   // offers wait for theirs (F8), and everybody their unread messages (F7).
-  // Notifications come in F9.
+  // Notifications have the bell in the header (F9).
   const [newRequests, offers, unreadMessages] = await Promise.all([
     profile.default_mode === "host" ? getNewRequestCount() : Promise.resolve(0),
     profile.default_mode === "seek" ? getMyOfferCount(user.id) : Promise.resolve(0),
