@@ -119,6 +119,29 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "messageRateLimit";
     case "invalid_message":
       return "textTooLong";
+    // F8 offer and confirm
+    case "offer_limit":
+      return "offerLimit";
+    case "not_enough_seats":
+      return "notEnoughSeats";
+    case "offer_rent_invalid":
+      return "offerRentInvalid";
+    case "offer_advance_invalid":
+      return "offerAdvanceInvalid";
+    case "offer_expired":
+      return "offerExpired";
+    case "consent_required":
+      return "consentRequired";
+    case "nid_invalid":
+      return "nidInvalid";
+    case "address_invalid":
+      return "addressInvalid";
+    case "photo_missing":
+      return "photoMissing";
+    case "unit_occupied":
+      return "unitOccupied";
+    case "already_tenant":
+      return "alreadyTenant";
   }
   switch (error?.code) {
     case "23505":

@@ -18,7 +18,8 @@ type Reason = (typeof DECLINE_REASONS)[number];
 /**
  * The landlord's buttons on one request (FR22). Shortlist only for a new
  * request on a live ad; decline (with a reason the seeker sees) for new and
- * shortlisted requests. The database checks the same rules again.
+ * shortlisted requests, and for an open offer, which takes the offer back
+ * (F8). The database checks the same rules again.
  */
 export function RequestActions({
   requestId,
@@ -50,7 +51,8 @@ export function RequestActions({
   const [error, setError] = useState<ErrorKey | null>(null);
   const [pending, startTransition] = useTransition();
 
-  if (status !== "pending" && status !== "shortlisted") return null;
+  if (status !== "pending" && status !== "shortlisted" && status !== "offered") return null;
+  const offered = status === "offered";
 
   function shortlist() {
     setError(null);
@@ -99,7 +101,7 @@ export function RequestActions({
             disabled={pending}
           >
             <X aria-hidden />
-            {t("decline")}
+            {offered ? t("takeBack") : t("decline")}
           </Button>
         </div>
       )}
@@ -110,7 +112,7 @@ export function RequestActions({
       {declining && (
         <form onSubmit={decline} className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-3" noValidate>
           <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1 text-sm font-semibold">{t("declineTitle")}</legend>
+            <legend className="mb-1 text-sm font-semibold">{offered ? t("takeBackTitle") : t("declineTitle")}</legend>
             <p className="mb-1 text-xs text-muted-foreground">{t("declineHint")}</p>
             {DECLINE_REASONS.map((r) => (
               <label
@@ -157,7 +159,7 @@ export function RequestActions({
               {tCommon("cancel")}
             </Button>
             <Button type="submit" size="sm" variant="destructive" disabled={pending}>
-              {pending ? t("working") : t("confirmDecline")}
+              {pending ? t("working") : offered ? t("confirmTakeBack") : t("confirmDecline")}
             </Button>
           </div>
         </form>

@@ -3,10 +3,12 @@
 import {
   ArrowDown,
   Ban,
+  BadgeCheck,
   Check,
   CheckCheck,
   CircleAlert,
   CircleX,
+  Handshake,
   History,
   Hourglass,
   Lock,
@@ -39,7 +41,12 @@ export type ThreadEvent =
   | { kind: "shortlisted"; at: string }
   | { kind: "declined"; at: string; reason: DeclineReason | null; note: string | null }
   | { kind: "withdrawn"; at: string }
-  | { kind: "expired"; at: string };
+  | { kind: "expired"; at: string }
+  // F8 offer and confirm
+  | { kind: "offered"; at: string }
+  | { kind: "confirmed"; at: string }
+  | { kind: "offerExpired"; at: string }
+  | { kind: "offerTurnedDown"; at: string };
 
 type Shown = {
   id: string;
@@ -483,6 +490,17 @@ export function Thread({
         return { icon: Undo2, text: side === "seeker" ? t("eventWithdrawnYou") : t("eventWithdrawn") };
       case "expired":
         return { icon: Hourglass, text: t("eventExpired") };
+      case "offered":
+        return { icon: Handshake, text: side === "seeker" ? t("eventOfferedYou") : t("eventOffered") };
+      case "confirmed":
+        return {
+          icon: BadgeCheck,
+          text: side === "seeker" ? t("eventConfirmedYou") : t("eventConfirmed", { name: nameOf(seekerId) }),
+        };
+      case "offerExpired":
+        return { icon: Hourglass, text: t("eventOfferExpired") };
+      case "offerTurnedDown":
+        return { icon: Undo2, text: side === "seeker" ? t("eventTurnedDownYou") : t("eventTurnedDown") };
     }
   }
 

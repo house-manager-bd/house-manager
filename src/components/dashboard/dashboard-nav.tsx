@@ -82,7 +82,7 @@ export function DashboardNav({
 }: {
   mode: AppMode;
   isAdmin?: boolean;
-  /** Counts shown next to menu items, such as new requests in the inbox (F6). */
+  /** Counts shown next to menu items: new requests in the inbox (F6), offers to answer in My requests (F8). */
   badges?: Partial<Record<Item["key"], number>>;
   /** Unread messages when the page was rendered; kept live in the browser (F7). */
   unreadMessages?: number;
@@ -128,7 +128,13 @@ export function DashboardNav({
                     "ml-auto rounded-full px-2 py-0.5 text-[11px] font-semibold",
                     active ? "bg-primary-foreground text-primary" : "bg-accent text-accent-foreground",
                   )}
-                  aria-label={key === "messages" ? t("unreadBadge", { count: badge }) : t("newBadge", { count: badge })}
+                  aria-label={
+                    key === "messages"
+                      ? t("unreadBadge", { count: badge })
+                      : key === "myRequests"
+                        ? t("offerBadge", { count: badge })
+                        : t("newBadge", { count: badge })
+                  }
                 >
                   {formatNumber(badge, locale)}
                 </span>

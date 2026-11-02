@@ -289,6 +289,31 @@ Admins see **Admin** in the avatar menu and the dashboard menu, which opens `/ad
 Message threads update live through Supabase Realtime. Nothing needs switching on by hand: the F7 migration adds the `messages` table to the `supabase_realtime` publication, which every Supabase project has. To check, open **Database**, **Publications**, `supabase_realtime`: `messages` is listed (do this on the demo project too).
 Leave **Project Settings**, **Realtime**, "private channels only" (or "Allow public access" switched on, depending on the dashboard version) as it is by default. The app listens on ordinary channels and relies on the table's read policy, so private-only mode would stop live updates. Pages still catch up when the window gets focus and every 15 seconds, so nothing is lost, only slower.
 The free plan allows 200 Realtime connections at once (each open tab is one), far above what the course needs.
+Since F8 the `rental_requests` table is in the same publication, so an offer, an acceptance or a decline shows on the other person's open page without reloading.
+
+### 8.7 NID encryption key (F8)
+When a member accepts an offer, the server encrypts their NID number before saving it (plan section 1.5). The key is a secret that lives only in Vercel and in each laptop's `.env.local`, never in the repo or the database. Without it, accepting an offer shows "Accepting offers is not set up on this site yet".
+
+1. Make one key, once, on any laptop with Node:
+   ```
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
+   It prints 44 characters ending in `=`. Save it in the password manager as "House Manager NID key".
+2. Vercel, team `sifat14`, project `house-manager`, **Settings**, **Environment Variables**, **Create New**:
+   - Type: **Secret** (not Config). A secret cannot be read again after saving, so the password manager copy is the only one.
+   - Key: `NID_ENCRYPTION_KEY`. Never with `NEXT_PUBLIC_` in front, which would send it to every visitor's browser.
+   - Value: the key from step 1, without quotes or spaces.
+   - Note (optional): `Never change: saved NID numbers become unreadable. Copy in Sifat's password manager.`
+   - Environments: open the list and tick **Production** and **Preview**. Leave Development off: Vercel does not allow secrets there, and laptops use `.env.local` (step 4).
+   - **Save**. The list then shows the key twice, once for Production and once for Preview, each with a lock icon (the lock means Secret).
+3. Redeploy the preview so the key is picked up: **Deployments**, the newest **Preview** row for the branch you test, **...** at the end of the row, **Redeploy**, then **Redeploy** again in the dialog. Do not use **Promote to Production**, and ignore the **Redeploy** button in the "Added Environment Variable" message (it redeploys production). A new commit on the pull request also works. Production picks the key up by itself with the next deployment from `main`.
+4. On a laptop: add `NID_ENCRYPTION_KEY=<the same value>` to `.env.local` (next to `package.json`), then stop and start `npm run dev`. `git status` must not list `.env.local`.
+
+Done for `house-manager` on 2026-11-01 (Production and Preview).
+
+Keep the same key for good: a number encrypted with one key can only be read with that key, so a new key makes every saved NID unreadable ("This NID number could not be read"). Every deployment that uses the same Supabase project needs the same key (today Production and Preview both use the dev project). If the key ever leaks, the numbers are not exposed by the key alone (the database is needed too), but treat it like any other secret (7.3) and ask the team before changing it.
+
+The tenant's photo goes to the private `tenant-docs` bucket, which the F8 migration creates. Check: **Storage** shows `tenant-docs` without the "Public" label. Photos open only through short-lived links for the tenant and the ad's landlord side.
 
 ---
 

@@ -1,4 +1,4 @@
-// Database types for the tables created so far (F1 to F7).
+// Database types for the tables created so far (F1 to F8).
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
@@ -43,7 +43,7 @@ export type ListingFlag =
   | "banned_words"
   | "phone_in_text"
   | "rent_outlier";
-/** Plan section 1.4. offered and confirmed come with F8. */
+/** Plan section 1.4. offered and confirmed since F8. */
 export type RequestStatus =
   | "pending"
   | "shortlisted"
@@ -56,6 +56,8 @@ export type HouseholdType = "family" | "bachelor_male" | "bachelor_female";
 /** filled is also used by F8 when the place goes to someone else. */
 export type DeclineReason = "filled" | "household" | "move_in" | "other";
 export type WaterBilling = "included" | "tenant_pays";
+/** F8: a confirmed tenant in a unit. ended and cancelled come with House Manage. */
+export type TenancyStatus = "active" | "ended" | "cancelled";
 export type GasBilling = "included" | "tenant_pays";
 
 export type HouseRules = {
@@ -290,6 +292,51 @@ export type RentalRequestRow = {
   closed_at: string | null;
   created_at: string;
   updated_at: string;
+  /** F8: the offer (valid until offer_expires_at). */
+  offered_at: string | null;
+  offered_by: string | null;
+  offer_rent: number | null;
+  offer_advance: number | null;
+  offer_start_date: string | null;
+  offer_note: string | null;
+  confirmed_at: string | null;
+};
+
+/** Offer fields shared by the read functions (F8). */
+type OfferFields = Pick<
+  RentalRequestRow,
+  "offered_at" | "offer_expires_at" | "offer_rent" | "offer_advance" | "offer_start_date" | "confirmed_at"
+>;
+
+/** F8: a confirmed tenant in a unit (plan section 1.9). Created only by accept_offer. */
+export type TenancyRow = {
+  id: string;
+  unit_id: string;
+  listing_id: string;
+  request_id: string;
+  landlord_id: string;
+  tenant_id: string;
+  members_count: number;
+  start_date: string;
+  monthly_rent: number;
+  advance_amount: number;
+  status: TenancyStatus;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+/** F8: what a seeker shares on accepting an offer. Only the tenant and the landlord side read it. */
+export type TenantVerificationRow = {
+  request_id: string;
+  tenant_id: string;
+  /** v1:<iv>:<ciphertext>:<tag>; only the app server can read it (lib/crypto/nid.ts). */
+  nid_encrypted: string;
+  nid_last4: string;
+  photo_path: string;
+  permanent_address: string;
+  consent_at: string;
+  created_at: string;
 };
 
 /** One row of public.my_requests(): the seeker's request with a summary of the ad (F6). */
@@ -308,7 +355,8 @@ export type MyRequestRow = Pick<
   | "shortlisted_at"
   | "closed_at"
   | "created_at"
-> & {
+> &
+  OfferFields & {
   listing_title: string | null;
   listing_type: ListingType;
   listing_status: ListingStatus;
@@ -330,12 +378,19 @@ export type InboxRow = {
   listing_type: ListingType;
   listing_status: ListingStatus;
   monthly_rent: number | null;
+  /** F8: places left on the ad (seats for a mess, otherwise 1, and 0 once rented). */
+  open_slots: number;
   unit_label: string;
   building_name: string;
   area_id: number;
   cover_path: string | null;
   pending_count: number;
+  /** Shortlisted requests, including live offers. */
   shortlisted_count: number;
+  /** F8: live offers waiting for an answer, and confirmed tenants. */
+  offered_count: number;
+  confirmed_count: number;
+  /** Declined, withdrawn and expired. */
   closed_count: number;
   last_request_at: string;
   /** F7: seekers' messages on this ad's requests that nobody on the landlord side has read. */
@@ -381,12 +436,21 @@ export type ThreadInfoRow = Pick<
   | "shortlisted_at"
   | "closed_at"
   | "created_at"
-> & {
+  | "offer_note"
+> &
+  OfferFields & {
   my_side: ThreadSide;
   listing_title: string | null;
   listing_type: ListingType;
   listing_status: ListingStatus;
   monthly_rent: number | null;
+  advance_months: number | null;
+  /** Places left on the ad. */
+  open_slots: number;
+  /** Places this request takes (its people for a mess, otherwise 1). */
+  seats_needed: number;
+  /** Places held by other live offers on the ad; only for the landlord side. */
+  seats_offered: number | null;
   area_id: number;
   cover_path: string | null;
   poster_id: string | null;
@@ -402,6 +466,13 @@ export type ThreadInfoRow = Pick<
   send_block: MessageSendBlock | null;
   /** The seeker's messages left before the landlord side answers; null when there is no limit. */
   messages_left: number | null;
+  /** F8, once confirmed: the tenancy, the unit and its exact address. */
+  tenancy_id: string | null;
+  unit_label: string | null;
+  road_address: string | null;
+  house_no: string | null;
+  /** The ad's contact number, for the confirmed tenant only. */
+  landlord_phone: string | null;
 };
 
 /** One row of public.message_threads(): the Messages page (F7). */
@@ -513,6 +584,8 @@ export type Database = {
       moderation_words: Table<{ word: string; created_at: string }>;
       rental_requests: Table<RentalRequestRow>;
       messages: Table<MessageRow>;
+      tenancies: Table<TenancyRow>;
+      tenant_verifications: Table<TenantVerificationRow>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -563,6 +636,28 @@ export type Database = {
       unread_message_count: { Args: Record<string, never>; Returns: number };
       listing_thread_counts: { Args: { p_listing_id: string }; Returns: ThreadCountRow[] };
       message_threads: { Args: Record<string, never>; Returns: MessageThreadRow[] };
+      /** F8 offer and confirm. make_offer returns when the offer expires; accept_offer the tenancy id. */
+      make_offer: {
+        Args: {
+          p_request_id: string;
+          p_monthly_rent: number;
+          p_advance: number;
+          p_start_date: string;
+          p_note?: string | null;
+        };
+        Returns: string;
+      };
+      accept_offer: {
+        Args: {
+          p_request_id: string;
+          p_nid_encrypted: string;
+          p_nid_last4: string;
+          p_photo_path: string;
+          p_permanent_address: string;
+          p_consent: boolean;
+        };
+        Returns: string;
+      };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
         Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };
@@ -603,6 +698,7 @@ export type Database = {
       request_status: RequestStatus;
       household_type: HouseholdType;
       decline_reason: DeclineReason;
+      tenancy_status: TenancyStatus;
     };
     CompositeTypes: { [_ in never]: never };
   };

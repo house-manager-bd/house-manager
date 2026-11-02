@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import {
   ArrowRight,
+  BadgeCheck,
   Ban,
   Building2,
+  Handshake,
   Inbox,
   Megaphone,
   MessagesSquare,
@@ -19,7 +21,7 @@ import { getAdminCounts } from "@/lib/data/admin";
 import { getMyListings } from "@/lib/data/listings";
 import { getUnreadMessageCount } from "@/lib/data/messages";
 import { getMyBuildings } from "@/lib/data/properties";
-import { getMyRequests, getNewRequestCount } from "@/lib/data/requests";
+import { getInbox, getMyRequests } from "@/lib/data/requests";
 import { OPEN_STATUSES } from "@/lib/validation/request";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -45,16 +47,20 @@ export default async function DashboardPage() {
   if (!user || !profile?.default_mode) return null; // The layout redirects first.
 
   const mode = profile.default_mode;
-  const [buildings, ads, newRequests] =
-    mode === "host"
-      ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id), getNewRequestCount()])
-      : [[], [], 0];
+  const [buildings, ads, inbox] =
+    mode === "host" ? await Promise.all([getMyBuildings(user.id), getMyListings(user.id), getInbox()]) : [[], [], []];
+  const newRequests = inbox.reduce((sum, row) => sum + row.pending_count, 0);
+  // F8: offers the landlord side made that wait for the member's answer.
+  const offersWaiting = inbox.reduce((sum, row) => sum + row.offered_count, 0);
   const [myRequests, unreadMessages] = await Promise.all([
     mode === "seek" ? getMyRequests() : Promise.resolve([]),
     getUnreadMessageCount(),
   ]);
   const openRequests = myRequests.filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status)).length;
   const shortlistedFor = myRequests.filter((r) => r.status === "shortlisted").length;
+  // F8: offers to answer within 48 hours, and places the member now rents.
+  const offersToAnswer = myRequests.filter((r) => r.status === "offered").length;
+  const confirmedPlaces = myRequests.filter((r) => r.status === "confirmed").length;
   const isAdmin = isAdminProfile(profile);
   const [tAdmin, adminCounts] = await Promise.all([
     getTranslations("Admin"),
@@ -74,7 +80,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <LiveRefresh />
+      <LiveRefresh requests />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">
           {firstName ? t("welcome", { name: firstName }) : t("welcomeNoName")}
@@ -168,6 +174,12 @@ export default async function DashboardPage() {
                   <Inbox className="size-4 text-muted-foreground" aria-hidden />
                   {t("newRequestsCount", { count: newRequests })}
                 </Link>
+                {offersWaiting > 0 && (
+                  <Link href="/dashboard/inbox" className="flex items-center gap-2 hover:underline">
+                    <Handshake className="size-4 text-muted-foreground" aria-hidden />
+                    {t("offersWaitingCount", { count: offersWaiting })}
+                  </Link>
+                )}
                 {unreadLink}
               </div>
               <Button asChild className="w-fit">
@@ -193,6 +205,18 @@ export default async function DashboardPage() {
                   <Send className="size-4 text-muted-foreground" aria-hidden />
                   {t("openRequestsCount", { count: openRequests })}
                 </Link>
+                {offersToAnswer > 0 && (
+                  <Link href="/dashboard/requests" className="flex items-center gap-2 font-semibold text-amber-800 hover:underline">
+                    <Handshake className="size-4 text-muted-foreground" aria-hidden />
+                    {t("offersToAnswerCount", { count: offersToAnswer })}
+                  </Link>
+                )}
+                {confirmedPlaces > 0 && (
+                  <Link href="/dashboard/requests?tab=confirmed" className="flex items-center gap-2 text-primary hover:underline">
+                    <BadgeCheck className="size-4" aria-hidden />
+                    {t("confirmedPlacesCount", { count: confirmedPlaces })}
+                  </Link>
+                )}
                 {shortlistedFor > 0 && (
                   <p className="font-medium text-primary">{t("shortlistedForCount", { count: shortlistedFor })}</p>
                 )}

@@ -58,5 +58,48 @@ export function watchMessages({
   };
 }
 
+/**
+ * F8: listens to changes of the member's requests (a new request, an offer,
+ * an acceptance, a decline or a withdrawal): one request (requestId), or all
+ * of them.
+ * Realtime checks the rental_requests read policy for every change and every
+ * listener. Returns a function that stops listening.
+ */
+export function watchRequests({
+  requestId,
+  onChange,
+}: {
+  requestId?: string;
+  onChange: () => void;
+}): () => void {
+  const supabase = createClient();
+  let channel: RealtimeChannel | null = null;
+  let stopped = false;
+
+  void (async () => {
+    await supabase.realtime.setAuth().catch(() => undefined);
+    if (stopped) return;
+    const topic = `requests-${requestId ?? "all"}-${Math.random().toString(36).slice(2, 10)}`;
+    channel = supabase
+      .channel(topic)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rental_requests",
+          ...(requestId ? { filter: `id=eq.${requestId}` } : {}),
+        },
+        onChange,
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    stopped = true;
+    if (channel) void supabase.removeChannel(channel);
+  };
+}
+
 /** Sent by the thread after it marks messages as read, so the menu badge updates at once. */
 export const MESSAGES_READ_EVENT = "hm:messages-read";

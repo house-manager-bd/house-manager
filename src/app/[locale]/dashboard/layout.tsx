@@ -2,7 +2,7 @@ import { redirect } from "@/i18n/navigation";
 import { getTranslations } from "next-intl/server";
 import { getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
 import { getUnreadMessageCount } from "@/lib/data/messages";
-import { getNewRequestCount } from "@/lib/data/requests";
+import { getMyOfferCount, getNewRequestCount } from "@/lib/data/requests";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 
 export default async function DashboardLayout({
@@ -28,10 +28,12 @@ export default async function DashboardLayout({
   }
   // Google sign-ups answer the mode question first.
   if (!profile.default_mode) return redirect({ href: "/onboarding", locale: lang });
-  // Landlords see how many requests wait for an answer (F6), and everybody
-  // their unread messages (F7). Notifications come in F9.
-  const [newRequests, unreadMessages] = await Promise.all([
+  // Landlords see how many requests wait for an answer (F6), seekers how many
+  // offers wait for theirs (F8), and everybody their unread messages (F7).
+  // Notifications come in F9.
+  const [newRequests, offers, unreadMessages] = await Promise.all([
     profile.default_mode === "host" ? getNewRequestCount() : Promise.resolve(0),
+    profile.default_mode === "seek" ? getMyOfferCount(user.id) : Promise.resolve(0),
     getUnreadMessageCount(),
   ]);
 
@@ -43,7 +45,7 @@ export default async function DashboardLayout({
         <DashboardNav
           mode={profile.default_mode}
           isAdmin={isAdminProfile(profile)}
-          badges={{ requestsInbox: newRequests }}
+          badges={{ requestsInbox: newRequests, myRequests: offers }}
           unreadMessages={unreadMessages}
         />
       </aside>

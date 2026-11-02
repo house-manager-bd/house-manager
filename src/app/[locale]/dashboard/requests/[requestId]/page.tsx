@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Building2, ExternalLink, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Building2, ExternalLink, Handshake, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getThread } from "@/lib/data/messages";
+import { getTenantDetails } from "@/lib/data/offers";
 import { formatDate, formatTaka } from "@/lib/format";
-import { OPEN_STATUSES } from "@/lib/validation/request";
+import { dhakaToday, OPEN_STATUSES } from "@/lib/validation/request";
 import type { ThreadInfoRow } from "@/types/database";
 import { cn, nameInitials } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSuccessStatic } from "@/components/ui/success-note";
+import { LiveRefresh } from "@/components/messages/live-refresh";
 import { Thread, type ThreadEvent } from "@/components/messages/thread";
+import { AcceptForm } from "@/components/offers/accept-form";
+import { OfferCard } from "@/components/offers/offer-card";
+import { OfferForm } from "@/components/offers/offer-form";
+import { TenancyCard } from "@/components/offers/tenancy-card";
 import { PhoneLinks } from "@/components/requests/phone-links";
 import { RequestActions } from "@/components/requests/request-actions";
 import { RequestDetails } from "@/components/requests/request-details";
@@ -32,14 +38,34 @@ export async function generateMetadata(): Promise<Metadata> {
 function threadEvents(info: ThreadInfoRow): ThreadEvent[] {
   const events: ThreadEvent[] = [{ kind: "sent", at: info.created_at }];
   if (info.shortlisted_at) events.push({ kind: "shortlisted", at: info.shortlisted_at });
+  // F8: an offer can only end in confirmed, declined, withdrawn or expired.
+  if (info.offered_at) events.push({ kind: "offered", at: info.offered_at });
+  if (info.confirmed_at) events.push({ kind: "confirmed", at: info.confirmed_at });
   if (info.closed_at) {
     if (info.status === "declined") {
       events.push({ kind: "declined", at: info.closed_at, reason: info.decline_reason, note: info.decline_note });
-    } else if (info.status === "withdrawn" || info.status === "expired") {
-      events.push({ kind: info.status, at: info.closed_at });
+    } else if (info.status === "withdrawn") {
+      events.push({ kind: info.offered_at ? "offerTurnedDown" : "withdrawn", at: info.closed_at });
+    } else if (info.status === "expired") {
+      events.push({ kind: info.offered_at ? "offerExpired" : "expired", at: info.closed_at });
     }
   }
   return events;
+}
+
+/** Whole hours until a moment, at least 0. Worked out once per page render. */
+function hoursUntil(iso: string | null) {
+  if (!iso) return 0;
+  return Math.max(0, Math.floor((Date.parse(iso) - Date.now()) / 3_600_000));
+}
+
+/** Why the landlord side cannot make an offer on a shortlisted request right now, or null. */
+function offerBlock(info: ThreadInfoRow): "offerNotLive" | "offerSeekerBanned" | "notEnoughSeats" | "offerLimit" | null {
+  if (info.listing_status !== "active") return "offerNotLive";
+  if (info.seeker_banned) return "offerSeekerBanned";
+  if (info.seats_needed > info.open_slots) return "notEnoughSeats";
+  if ((info.seats_offered ?? 0) + info.seats_needed > info.open_slots) return "offerLimit";
+  return null;
 }
 
 /**
@@ -55,10 +81,11 @@ export default async function RequestThreadPage({
   const query = await searchParams;
   if (!UUID.test(requestId)) notFound();
 
-  const [t, tEnum, tInbox, locale, user, tree, thread] = await Promise.all([
+  const [t, tEnum, tInbox, tOffer, locale, user, tree, thread] = await Promise.all([
     getTranslations("Thread"),
     getTranslations("Enums"),
     getTranslations("Inbox"),
+    getTranslations("Offer"),
     getLocale(),
     getCurrentUser(),
     getLocationTree(),
@@ -71,17 +98,27 @@ export default async function RequestThreadPage({
   const asSeeker = info.my_side === "seeker";
   const live = info.listing_status === "active";
   const open = (OPEN_STATUSES as readonly string[]).includes(info.status);
+  const offered = info.status === "offered";
+  const confirmed = info.status === "confirmed";
+  // F8: the tenancy and what the tenant shared, only once confirmed.
+  const details = confirmed ? await getTenantDetails(info.id) : null;
   const otherName = (asSeeker ? info.poster_name : info.seeker_name)?.trim() || (asSeeker ? t("landlord") : t("member"));
   const otherAvatar = asSeeker ? info.poster_avatar : info.seeker_avatar;
   const adTitle = info.listing_title ?? tEnum(`listingType.${info.listing_type}`);
   const selfPath = `/dashboard/requests/${info.id}`;
   const adRequestsPath = `/dashboard/ads/${info.listing_id}/requests`;
   const backHref = asSeeker
-    ? `/dashboard/requests${open ? "" : "?tab=closed"}`
-    : `${adRequestsPath}${info.status === "pending" ? "" : open ? "?tab=shortlisted" : "?tab=closed"}`;
+    ? `/dashboard/requests${open ? "" : confirmed ? "?tab=confirmed" : "?tab=closed"}`
+    : `${adRequestsPath}${info.status === "pending" ? "" : open ? "?tab=shortlisted" : confirmed ? "?tab=confirmed" : "?tab=closed"}`;
+  const mess = info.listing_type === "mess_seat";
+  const offerRent = info.monthly_rent !== null ? info.monthly_rent * (mess ? info.seats_needed : 1) : null;
+  const today = dhakaToday();
+  const block = !asSeeker && info.status === "shortlisted" ? offerBlock(info) : null;
 
   return (
     <div className="flex flex-col gap-4">
+      {/* An offer, an answer or a decline from the other side shows without reloading (F8). */}
+      <LiveRefresh messages={false} requestId={info.id} />
       <Link
         href={backHref}
         className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"
@@ -101,10 +138,14 @@ export default async function RequestThreadPage({
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-lg font-bold break-words sm:text-xl">{otherName}</h1>
                 <Badge
-                  variant={info.status === "shortlisted" ? "success" : info.status === "pending" ? "warning" : "muted"}
+                  variant={
+                    info.status === "shortlisted" || confirmed ? "success" : info.status === "pending" || offered ? "warning" : "muted"
+                  }
                   className={info.status === "declined" ? "bg-destructive/10 text-destructive" : undefined}
                 >
                   {info.status === "shortlisted" && <Star className="size-3" aria-hidden />}
+                  {offered && <Handshake className="size-3" aria-hidden />}
+                  {confirmed && <BadgeCheck className="size-3" aria-hidden />}
                   {asSeeker ? tEnum(`requestStatus.${info.status}`) : tInbox(`status.${info.status}`)}
                 </Badge>
                 {!asSeeker && info.seeker_banned && (
@@ -141,6 +182,8 @@ export default async function RequestThreadPage({
 
           {query.done === "shortlisted" && <FormSuccessStatic title={tInbox("doneShortlisted")} />}
           {query.done === "declined" && <FormSuccessStatic title={tInbox("doneDeclined")} />}
+          {query.done === "offered" && offered && <FormSuccessStatic title={tOffer("doneOffered")} body={tOffer("doneOfferedBody")} />}
+          {query.done === "accepted" && confirmed && <FormSuccessStatic title={tOffer("doneAccepted")} body={tOffer("doneAcceptedBody")} />}
 
           {!asSeeker && info.seeker_phone && (
             <div className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
@@ -160,7 +203,8 @@ export default async function RequestThreadPage({
           </details>
 
           {asSeeker ? (
-            (open || live) && (
+            (open || live) &&
+            !offered && (
               <div className={cn("flex flex-wrap items-start gap-2")}>
                 {live && (
                   <Button asChild size="sm" variant="outline">
@@ -174,17 +218,74 @@ export default async function RequestThreadPage({
               </div>
             )
           ) : (
-            <RequestActions
-              requestId={info.id}
-              status={info.status}
-              canShortlist={live && !info.seeker_banned}
-              basePath={adRequestsPath}
-              tab={info.status === "pending" ? "new" : "shortlisted"}
-              returnTo={selfPath}
-            />
+            !offered && (
+              <div className="flex flex-col gap-3">
+                {info.status === "shortlisted" &&
+                  (block ? (
+                    <p className="text-sm text-muted-foreground">
+                      {tOffer(block, { count: info.open_slots, seats: info.seats_needed })}
+                    </p>
+                  ) : (
+                    <OfferForm
+                      requestId={info.id}
+                      memberName={otherName}
+                      defaultRent={offerRent}
+                      defaultAdvance={offerRent !== null ? offerRent * (info.advance_months ?? 1) : null}
+                      defaultStartDate={info.move_in_date > today ? info.move_in_date : today}
+                      seats={mess ? info.seats_needed : null}
+                      returnTo={selfPath}
+                      defaultOpen={query.offer === "open"}
+                    />
+                  ))}
+                {info.status === "pending" && live && <p className="text-xs text-muted-foreground">{tOffer("shortlistFirst")}</p>}
+                <RequestActions
+                  requestId={info.id}
+                  status={info.status}
+                  canShortlist={live && !info.seeker_banned}
+                  basePath={adRequestsPath}
+                  tab={info.status === "pending" ? "new" : "shortlisted"}
+                  returnTo={selfPath}
+                />
+              </div>
+            )
           )}
         </CardContent>
       </Card>
+
+      {offered && (
+        <OfferCard info={info} hoursLeft={hoursUntil(info.offer_expires_at)}>
+          {asSeeker ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">{tOffer("answerHint", { name: otherName })}</p>
+              {live ? (
+                <div className="flex flex-wrap items-start gap-3">
+                  <AcceptForm requestId={info.id} userId={user.id} landlordName={otherName} returnTo={selfPath} />
+                  <WithdrawButton requestId={info.id} offer />
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-amber-800">{tOffer("offerPaused")}</p>
+                  <WithdrawButton requestId={info.id} offer />
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">{tOffer("waitingFor", { name: otherName })}</p>
+              <RequestActions
+                requestId={info.id}
+                status={info.status}
+                canShortlist={false}
+                basePath={adRequestsPath}
+                tab="shortlisted"
+                returnTo={selfPath}
+              />
+            </div>
+          )}
+        </OfferCard>
+      )}
+
+      {confirmed && details && <TenancyCard info={info} details={details} />}
 
       <Thread
         requestId={info.id}
