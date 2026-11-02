@@ -299,9 +299,17 @@ When a member accepts an offer, the server encrypts their NID number before savi
    node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
    ```
    It prints 44 characters ending in `=`. Save it in the password manager as "House Manager NID key".
-2. Vercel, project `house-manager`, **Settings**, **Environment Variables**, **Add**: name `NID_ENCRYPTION_KEY`, the value from step 1, environments **Production** and **Preview** (and Development if you use `vercel env pull`). Leave "Sensitive" switched on.
-3. Redeploy so the key is picked up: **Deployments**, the latest preview or production deployment, **...**, **Redeploy**. A new commit on the pull request also works.
-4. On a laptop: add `NID_ENCRYPTION_KEY=<the same value>` to `.env.local`.
+2. Vercel, team `sifat14`, project `house-manager`, **Settings**, **Environment Variables**, **Create New**:
+   - Type: **Secret** (not Config). A secret cannot be read again after saving, so the password manager copy is the only one.
+   - Key: `NID_ENCRYPTION_KEY`. Never with `NEXT_PUBLIC_` in front, which would send it to every visitor's browser.
+   - Value: the key from step 1, without quotes or spaces.
+   - Note (optional): `Never change: saved NID numbers become unreadable. Copy in Sifat's password manager.`
+   - Environments: open the list and tick **Production** and **Preview**. Leave Development off: Vercel does not allow secrets there, and laptops use `.env.local` (step 4).
+   - **Save**. The list then shows the key twice, once for Production and once for Preview, each with a lock icon (the lock means Secret).
+3. Redeploy the preview so the key is picked up: **Deployments**, the newest **Preview** row for the branch you test, **...** at the end of the row, **Redeploy**, then **Redeploy** again in the dialog. Do not use **Promote to Production**, and ignore the **Redeploy** button in the "Added Environment Variable" message (it redeploys production). A new commit on the pull request also works. Production picks the key up by itself with the next deployment from `main`.
+4. On a laptop: add `NID_ENCRYPTION_KEY=<the same value>` to `.env.local` (next to `package.json`), then stop and start `npm run dev`. `git status` must not list `.env.local`.
+
+Done for `house-manager` on 2026-11-01 (Production and Preview).
 
 Keep the same key for good: a number encrypted with one key can only be read with that key, so a new key makes every saved NID unreadable ("This NID number could not be read"). Every deployment that uses the same Supabase project needs the same key (today Production and Preview both use the dev project). If the key ever leaks, the numbers are not exposed by the key alone (the database is needed too), but treat it like any other secret (7.3) and ask the team before changing it.
 
