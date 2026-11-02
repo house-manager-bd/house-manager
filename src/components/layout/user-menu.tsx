@@ -54,7 +54,7 @@ export function UserMenu({ fullName, email, avatarUrl, mode, isAdmin = false }: 
         className="rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         aria-label={t("openMenu")}
       >
-        <Avatar className="size-9 border">
+        <Avatar className="size-8 border sm:size-9">
           {avatarUrl && <AvatarImage src={avatarUrl} alt="" referrerPolicy="no-referrer" />}
           <AvatarFallback>{initials(fullName, email)}</AvatarFallback>
         </Avatar>

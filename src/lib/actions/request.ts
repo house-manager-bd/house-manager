@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { sendNotificationEmailsLater } from "@/lib/email/deliver";
 import { createClient } from "@/lib/supabase/server";
 import {
   declineRequestSchema,
@@ -13,7 +14,8 @@ import { dbErrorKey, fromZodError, type ActionResult, type ErrorKey } from "./re
 
 // F6 rental requests. Each action checks the input with the shared schema,
 // then calls one database function, which checks the caller, the status and
-// the limits again in one transaction.
+// the limits again in one transaction. Since F9 the database also writes the
+// notifications in that transaction, and the emails go out after the response.
 
 /** Like dbErrorKey, but "wrong status" is about the request here, not the ad. */
 function requestErrorKey(error: { code?: string; message?: string } | null): ErrorKey {
@@ -44,6 +46,7 @@ export async function sendRequest(input: SendRequestInput): Promise<ActionResult
     return { ok: false, error: dbErrorKey(error) };
   }
   revalidatePath("/[locale]", "layout");
+  sendNotificationEmailsLater();
   return { ok: true, data: { id: data } };
 }
 
@@ -56,6 +59,7 @@ export async function shortlistRequest(requestId: string): Promise<ActionResult>
   const { error } = await supabase.rpc("shortlist_request", { p_request_id: parsed.data });
   if (error) return { ok: false, error: requestErrorKey(error) };
   revalidatePath("/[locale]", "layout");
+  sendNotificationEmailsLater();
   return { ok: true };
 }
 
@@ -73,6 +77,7 @@ export async function declineRequest(input: DeclineRequestInput): Promise<Action
   });
   if (error) return { ok: false, error: requestErrorKey(error) };
   revalidatePath("/[locale]", "layout");
+  sendNotificationEmailsLater();
   return { ok: true };
 }
 
@@ -85,5 +90,7 @@ export async function withdrawRequest(requestId: string): Promise<ActionResult> 
   const { error } = await supabase.rpc("withdraw_request", { p_request_id: parsed.data });
   if (error) return { ok: false, error: requestErrorKey(error) };
   revalidatePath("/[locale]", "layout");
+  // Turning an offer down tells the landlord side (F9).
+  sendNotificationEmailsLater();
   return { ok: true };
 }

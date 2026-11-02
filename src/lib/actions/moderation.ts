@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { sendNotificationEmailsLater } from "@/lib/email/deliver";
 import { createClient } from "@/lib/supabase/server";
 import {
   banSchema,
@@ -35,6 +36,8 @@ export async function reportListing(input: ReportInput): Promise<ActionResult> {
   }
   // No revalidatePath here: the third report hides the ad, and re-rendering
   // the page would replace the "thank you" note with "page not found".
+  // The third report also tells the poster (F9).
+  sendNotificationEmailsLater();
   return { ok: true };
 }
 
@@ -52,6 +55,8 @@ export async function moderateListing(input: ModerateInput): Promise<ActionResul
   });
   if (error || !data) return { ok: false, error: dbErrorKey(error) };
   revalidatePath("/[locale]", "layout");
+  // The poster hears about the decision (F9).
+  sendNotificationEmailsLater();
   return { ok: true, data: { status: data } };
 }
 
