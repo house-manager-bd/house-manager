@@ -103,3 +103,44 @@ export function watchRequests({
 
 /** Sent by the thread after it marks messages as read, so the menu badge updates at once. */
 export const MESSAGES_READ_EVENT = "hm:messages-read";
+
+/**
+ * F9: listens to the member's notifications (a new one, or one marked read
+ * in another tab). Realtime checks the notifications read policy for every
+ * change and every listener, so only the member's own arrive; the filter
+ * saves Realtime that check for everybody else's. Returns a function that
+ * stops listening.
+ */
+export function watchNotifications({
+  userId,
+  onChange,
+}: {
+  userId: string;
+  onChange: () => void;
+}): () => void {
+  const supabase = createClient();
+  let channel: RealtimeChannel | null = null;
+  let stopped = false;
+
+  void (async () => {
+    await supabase.realtime.setAuth().catch(() => undefined);
+    if (stopped) return;
+    const topic = `notifications-${Math.random().toString(36).slice(2, 10)}`;
+    channel = supabase
+      .channel(topic)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        onChange,
+      )
+      .subscribe();
+  })();
+
+  return () => {
+    stopped = true;
+    if (channel) void supabase.removeChannel(channel);
+  };
+}
+
+/** Sent after notifications are marked read on a page, so the bell updates at once. */
+export const NOTIFICATIONS_READ_EVENT = "hm:notifications-read";

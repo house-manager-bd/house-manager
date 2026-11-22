@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getThread } from "@/lib/data/messages";
+import { getRequestNewestUnread } from "@/lib/data/notifications";
 import { getTenantDetails } from "@/lib/data/offers";
 import { formatDate, formatTaka } from "@/lib/format";
 import { dhakaToday, OPEN_STATUSES } from "@/lib/validation/request";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormSuccessStatic } from "@/components/ui/success-note";
 import { LiveRefresh } from "@/components/messages/live-refresh";
+import { MarkRequestNotificationsRead } from "@/components/notifications/mark-request-read";
 import { Thread, type ThreadEvent } from "@/components/messages/thread";
 import { AcceptForm } from "@/components/offers/accept-form";
 import { OfferCard } from "@/components/offers/offer-card";
@@ -81,7 +83,7 @@ export default async function RequestThreadPage({
   const query = await searchParams;
   if (!UUID.test(requestId)) notFound();
 
-  const [t, tEnum, tInbox, tOffer, locale, user, tree, thread] = await Promise.all([
+  const [t, tEnum, tInbox, tOffer, locale, user, tree, thread, newestUnread] = await Promise.all([
     getTranslations("Thread"),
     getTranslations("Enums"),
     getTranslations("Inbox"),
@@ -90,6 +92,7 @@ export default async function RequestThreadPage({
     getCurrentUser(),
     getLocationTree(),
     getThread(requestId),
+    getRequestNewestUnread(requestId),
   ]);
   if (!user) return null;
   if (!thread) notFound();
@@ -119,6 +122,8 @@ export default async function RequestThreadPage({
     <div className="flex flex-col gap-4">
       {/* An offer, an answer or a decline from the other side shows without reloading (F8). */}
       <LiveRefresh messages={false} requestId={info.id} />
+      {/* F9: this request's notifications are read now. */}
+      {newestUnread && <MarkRequestNotificationsRead requestId={info.id} newest={newestUnread} />}
       <Link
         href={backHref}
         className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground hover:underline"

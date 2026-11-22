@@ -1,4 +1,4 @@
-// Database types for the tables created so far (F1 to F8).
+// Database types for the tables created so far (F1 to F9).
 // Once the Supabase CLI is linked, regenerate this file with:
 //   npx supabase gen types typescript --linked > src/types/database.ts
 
@@ -527,6 +527,59 @@ export type SearchListingRow = {
   total_count: number;
 };
 
+/** F9: what a notification is about (public.notifications.type). */
+export type NotificationType =
+  | "request_new"
+  | "request_shortlisted"
+  | "request_declined"
+  | "offer_received"
+  | "offer_taken_back"
+  | "offer_accepted"
+  | "offer_turned_down"
+  | "offer_expired"
+  | "ad_approved"
+  | "ad_rejected"
+  | "ad_hidden"
+  | "ad_restored";
+
+/** What the triggers copy into a notification at that moment (F9). Each type uses some of it. */
+export type NotificationData = {
+  title?: string | null;
+  listing_type?: ListingType;
+  member_name?: string | null;
+  members_count?: number;
+  household_type?: HouseholdType;
+  rent?: number;
+  expires_at?: string;
+  reason?: DeclineReason;
+  /** offer_expired: whose notification it is. */
+  side?: ThreadSide;
+};
+
+export type NotificationRow = {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  request_id: string | null;
+  listing_id: string | null;
+  data: NotificationData;
+  read_at: string | null;
+  created_at: string;
+};
+
+/** One row of public.claim_notification_emails(): an email for the server to send (F9). */
+export type NotificationEmailRow = {
+  notification_id: string;
+  email: string;
+  full_name: string;
+  locale: AppLocale;
+  type: NotificationType;
+  data: NotificationData;
+  request_id: string | null;
+  listing_id: string | null;
+  created_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -586,6 +639,8 @@ export type Database = {
       messages: Table<MessageRow>;
       tenancies: Table<TenancyRow>;
       tenant_verifications: Table<TenantVerificationRow>;
+      notifications: Table<NotificationRow>;
+      notification_settings: Table<{ user_id: string; email_enabled: boolean; updated_at: string }>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -657,6 +712,18 @@ export type Database = {
           p_consent: boolean;
         };
         Returns: string;
+      };
+      /** F9 notifications. */
+      unread_notification_count: { Args: Record<string, never>; Returns: number };
+      mark_notifications_read: {
+        Args: { p_notification_id?: string | null; p_request_id?: string | null };
+        Returns: number;
+      };
+      set_email_notifications: { Args: { p_enabled: boolean }; Returns: undefined };
+      claim_notification_emails: { Args: { p_secret: string; p_limit?: number }; Returns: NotificationEmailRow[] };
+      finish_notification_emails: {
+        Args: { p_secret: string; p_sent: string[]; p_failed: string[]; p_error?: string | null };
+        Returns: undefined;
       };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {

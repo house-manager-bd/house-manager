@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { Bell } from "lucide-react";
 import { getTranslations } from "next-intl/server";
+import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser } from "@/lib/auth";
 import { formatBdPhoneLocal } from "@/lib/phone";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AvatarUpload } from "@/components/profile/avatar-upload";
 import { ProfileForm } from "@/components/profile/profile-form";
@@ -13,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ProfilePage({ params }: PageProps<"/[locale]/dashboard/profile">) {
   const { locale } = await params;
-  const t = await getTranslations("Profile");
+  const [t, tNotes] = await Promise.all([getTranslations("Profile"), getTranslations("Notifications")]);
   // Run the three lookups at the same time instead of one after another.
   const [user, profile, privateProfile] = await Promise.all([
     getCurrentUser(),
@@ -62,6 +65,22 @@ export default async function ProfilePage({ params }: PageProps<"/[locale]/dashb
               mode: profile.default_mode,
             }}
           />
+        </CardContent>
+      </Card>
+
+      {/* F9: notification emails are chosen on the notifications page. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{tNotes("profileCardTitle")}</CardTitle>
+          <CardDescription>{tNotes("profileCardBody")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/notifications#email">
+              <Bell aria-hidden />
+              {tNotes("profileCardCta")}
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

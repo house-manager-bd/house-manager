@@ -1268,5 +1268,91 @@
     "yourAd": "Request for your ad",
     "you": "You: {text}",
     "unread": "{count, plural, one {# unread message} other {# unread messages}}"
+  },
+  "Notifications": {
+    "title": "Notifications",
+    "subtitle": "Requests, offers and decisions about your ads, newest first.",
+    "bellLabel": "{count, plural, =0 {Notifications} one {Notifications, # unread} other {Notifications, # unread}}",
+    "markAllRead": "Mark all as read",
+    "marking": "Marking...",
+    "unread": "Unread",
+    "empty": "No notifications yet. New requests, offers and decisions about your ads will show up here.",
+    "older": "Show older",
+    "newest": "Back to the newest",
+    "member": "A member",
+    "emailTitle": "Email",
+    "emailBody": "We also send every notification to {email}.",
+    "emailToggle": "Send my notifications by email too",
+    "emailOn": "Emails are on.",
+    "emailOff": "Emails are off. You still see every notification here.",
+    "emailSaved": "Your choice has been saved.",
+    "profileCardTitle": "Notifications",
+    "profileCardBody": "See your notifications and choose whether they also come by email.",
+    "profileCardCta": "Open notifications",
+    "types": {
+      "requestNew": {
+        "title": "New request for your ad",
+        "body": "{name} sent a request for {members, plural, one {# person} other {# people}} ({household})."
+      },
+      "requestShortlisted": {
+        "title": "You are shortlisted",
+        "body": "The landlord shortlisted your request. They can now see your phone number and may call you."
+      },
+      "requestDeclined": {
+        "title": "Your request was declined",
+        "body": "Reason: {reason}."
+      },
+      "offerReceived": {
+        "title": "You have an offer",
+        "body": "Rent {rent} a month. Answer before {deadline}, or the offer expires."
+      },
+      "offerTakenBack": {
+        "title": "The offer was taken back",
+        "body": "The landlord took the offer back. Reason: {reason}."
+      },
+      "offerAccepted": {
+        "title": "Your offer was accepted",
+        "body": "{name} accepted your offer, so the tenancy is confirmed. Open the request to see the tenant's details."
+      },
+      "offerTurnedDown": {
+        "title": "Your offer was turned down",
+        "body": "{name} turned down your offer. You can offer the place to another member."
+      },
+      "offerExpiredSeeker": {
+        "title": "Your offer expired",
+        "body": "You did not answer within 48 hours. If the place is still free, you can send a new request."
+      },
+      "offerExpiredLandlord": {
+        "title": "Your offer expired",
+        "body": "{name} did not answer within 48 hours. You can offer the place to another member."
+      },
+      "adApproved": {
+        "title": "Your ad is live",
+        "body": "An admin approved your ad. It now shows in search results and on the map."
+      },
+      "adRejected": {
+        "title": "Your ad was rejected",
+        "body": "Open My ads to see the reason. You can change the ad and send it in again."
+      },
+      "adHidden": {
+        "title": "Your ad is hidden",
+        "body": "Your ad does not show in search results while an admin checks it."
+      },
+      "adRestored": {
+        "title": "Your ad is live again",
+        "body": "An admin checked your ad and put it back in search results."
+      }
+    }
+  },
+  "Email": {
+    "greeting": "Hello {name},",
+    "greetingNoName": "Hello,",
+    "buttonRequest": "Open the request",
+    "buttonAd": "View your ad",
+    "buttonMyAds": "Open My ads",
+    "linkHint": "If the button does not work, copy this link into your browser:",
+    "footer": "You get this email because you have an account on House Manager.",
+    "footerSettings": "To stop these emails, turn them off on your notifications page:",
+    "safety": "House Manager never asks for your password, OTP or PIN by email."
   }
 }

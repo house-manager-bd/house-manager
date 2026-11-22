@@ -1,5 +1,5 @@
 # SETUP.md: House Manager accounts and tools
-Last updated: 2026-10-03
+Last updated: 2026-11-02
 Put this file in the repo at docs/SETUP.md.
 
 Free tiers and dashboard menus change often. If a button name differs slightly from this guide, look for the closest match.
@@ -220,6 +220,8 @@ Save. Then check **Authentication**, **Rate Limits**: the email limit starts at 
 | Google client secret | **Yes** | Supabase dashboard only |
 | Gmail app password | **Yes** | Supabase dashboard only |
 | NID encryption key (F8) | **Yes** | Vercel env vars, never in the repo |
+| Gmail app password for the app's emails (F9) | **Yes** | Vercel env vars (`SMTP_PASSWORD`), never in the repo |
+| Email worker secret (F9) | **Yes** | Vercel env vars (`EMAIL_WORKER_SECRET`); only its hash is in the database |
 
 For F1, teammates only need the **dev** project URL and **dev** publishable key. Sifat can share those in the team group. Everything marked secret stays with Sifat and the dashboards.
 
@@ -314,6 +316,53 @@ Done for `house-manager` on 2026-11-01 (Production and Preview).
 Keep the same key for good: a number encrypted with one key can only be read with that key, so a new key makes every saved NID unreadable ("This NID number could not be read"). Every deployment that uses the same Supabase project needs the same key (today Production and Preview both use the dev project). If the key ever leaks, the numbers are not exposed by the key alone (the database is needed too), but treat it like any other secret (7.3) and ask the team before changing it.
 
 The tenant's photo goes to the private `tenant-docs` bucket, which the F8 migration creates. Check: **Storage** shows `tenant-docs` without the "Public" label. Photos open only through short-lived links for the tenant and the ad's landlord side.
+### 8.8 Notification emails (F9)
+Every notification also goes out by email (plan section 1.10). The Next.js server sends the emails through the project Gmail's SMTP, right after the action that caused them (a request, a shortlist, an offer, an answer, a moderation decision). The emails wait in the database (`notification_emails`), and the server takes them out with the **email worker secret**, so the app still needs no Supabase secret key. Without the settings below, notifications still appear in the app; their emails just wait, and are dropped once they are 24 hours old.
+
+The settings (Vercel and `.env.local`, never the repo):
+
+| Variable | Type on Vercel | Value |
+|---|---|---|
+| `SMTP_USER` | Config | `housemanagerbd@gmail.com` |
+| `SMTP_PASSWORD` | Secret | a new Gmail app password (step 1) |
+| `EMAIL_WORKER_SECRET` | Secret | a random secret (step 2) |
+
+Optional, only to change the provider later (no code change): `SMTP_HOST` (default `smtp.gmail.com`), `SMTP_PORT` (default `465`) and `EMAIL_FROM` (default `SMTP_USER`).
+
+1. **Gmail app password.** Sign in to myaccount.google.com with the project Gmail, search the settings for **App passwords**, create one named `House Manager app`. Use a new one, not the `Supabase` one from 6.3, so either can be removed without breaking the other. Google shows 16 letters in four groups (the spaces do not matter). Save it in the password manager as "House Manager app password (emails)".
+2. **Worker secret.** On any laptop with Node:
+   ```
+   node -e "const c=require('crypto');const s=c.randomBytes(32).toString('base64url');console.log('EMAIL_WORKER_SECRET='+s);console.log('hash for SQL: '+c.createHash('sha256').update(s).digest('hex'))"
+   ```
+   It prints two lines. Save the secret (43 characters after `EMAIL_WORKER_SECRET=`) in the password manager as "House Manager email worker secret". The hash (64 characters) is not secret; it is only for step 3.
+3. **Hash into the database** (after the F9 migration), in the SQL Editor, with the hash from step 2 in place of `<hash>`:
+   ```sql
+   insert into private.email_worker (secret_hash)
+   values (decode('<hash>', 'hex'))
+   on conflict (id) do update set secret_hash = excluded.secret_hash, updated_at = now()
+   returning updated_at;
+   ```
+   The database keeps only the hash, so the secret itself never goes into the SQL Editor's history.
+4. **Vercel**, team `sifat14`, project `house-manager`, **Settings**, **Environment Variables**, **Create New**, three times, like 8.7 step 2:
+   - `SMTP_USER`: type **Config**, value `housemanagerbd@gmail.com`.
+   - `SMTP_PASSWORD`: type **Secret**, the app password from step 1.
+   - `EMAIL_WORKER_SECRET`: type **Secret**, the secret from step 2.
+   - Environments for each: **Production** and **Preview**. Never with `NEXT_PUBLIC_` in front.
+5. **Redeploy the preview** you test, as in 8.7 step 3.
+6. **Laptops** (optional): add the three lines to `.env.local` and restart `npm run dev`. Teammates without them see notifications in the app but send no email, which is fine for most work.
+
+**Check:** do something that notifies another test account (for example shortlist a request), wait a few seconds, then run in the SQL Editor:
+```sql
+select status, last_error, count(*) from public.notification_emails group by 1, 2 order by 1;
+```
+- `sent`: delivered to Gmail. If the email is not in the inbox, look in Spam once and mark it "Not spam".
+- `failed` with `EAUTH`: the app password is wrong (step 1 and 4). The emails are tried again after 5 minutes, at most 3 times, with the next action on the site.
+- `skipped` with `stale`: older than 24 hours when the server first saw them (normal for notifications made before the settings were added). `turned_off`: the member turned emails off. `no_email`: the account has no confirmed address.
+
+Good to know:
+- A normal Gmail account sends about 500 emails a day, far more than the course needs. With a domain later, switch to Resend or Brevo by changing only the variables above (6.2).
+- Production and every preview use the same dev database, so any deployment with these settings sends whatever is waiting, and its links point to that deployment (a preview links to its own branch address, production to `NEXT_PUBLIC_SITE_URL`).
+- If the worker secret leaks, make a new one (steps 2 to 5). The old one stops working as soon as the new hash is saved.
 
 ---
 
