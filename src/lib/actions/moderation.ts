@@ -11,7 +11,7 @@ import {
   type ModerateInput,
   type ReportInput,
 } from "@/lib/validation/moderation";
-import type { ListingStatus } from "@/types/database";
+import type { ListingStatus, ScheduledJobsResult } from "@/types/database";
 import { dbErrorKey, fromZodError, type ActionResult } from "./result";
 
 /**
@@ -75,4 +75,19 @@ export async function setUserBan(input: BanInput): Promise<ActionResult> {
   if (error) return { ok: false, error: dbErrorKey(error) };
   revalidatePath("/[locale]", "layout");
   return { ok: true };
+}
+
+/**
+ * F10: runs the scheduled job now (Supabase Cron runs it every 10 minutes):
+ * expired offers, requests without a step for 14 days, ad reminders and
+ * expiry, old notifications. This server then sends the emails, with links
+ * to the site the admin is on (a preview during tests).
+ */
+export async function runScheduledJobs(): Promise<ActionResult<ScheduledJobsResult>> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_run_scheduled_jobs");
+  if (error || !data) return { ok: false, error: dbErrorKey(error) };
+  sendNotificationEmailsLater();
+  revalidatePath("/[locale]", "layout");
+  return { ok: true, data };
 }

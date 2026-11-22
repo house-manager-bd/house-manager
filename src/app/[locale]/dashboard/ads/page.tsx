@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Building2, ImageOff, Inbox, Megaphone, Plus } from "lucide-react";
+import { Building2, CircleAlert, ImageOff, Inbox, Megaphone, Plus } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -10,8 +10,11 @@ import { MIN_PHOTOS, photoUrl } from "@/lib/photos";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert } from "@/components/ui/alert";
 import { FormSuccessStatic } from "@/components/ui/success-note";
 import { ReopenButton } from "@/components/ad/reopen-button";
+import { ManageActions } from "@/components/ads/manage-actions";
+import { manageState } from "@/lib/listing-manage";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Ads");
@@ -50,6 +53,16 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
         <FormSuccessStatic title={tWizard("published")} body={tWizard("publishedBody")} />
       )}
       {query.saved === "1" && <FormSuccessStatic title={tWizard("draftSaved")} />}
+      {query.edited === "1" && <FormSuccessStatic title={t("editedTitle")} />}
+      {query.review === "1" && (
+        <Alert>
+          <CircleAlert aria-hidden />
+          <span className="flex flex-col gap-1">
+            <span className="font-semibold text-foreground">{t("reviewTitle")}</span>
+            <span className="text-muted-foreground">{t("reviewBody")}</span>
+          </span>
+        </Alert>
+      )}
 
       {ads.length === 0 ? (
         <Card className="items-center py-12 text-center">
@@ -67,96 +80,132 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
         </Card>
       ) : (
         <ul className="flex flex-col gap-3">
-          {ads.map((ad) => (
-            <li key={ad.id}>
-              <Card className="gap-3 py-5">
-                <div className="flex gap-4 px-6">
-                  <div className="hidden aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-md border bg-muted sm:block">
-                    {ad.coverPath ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoUrl(ad.coverPath)} alt="" className="size-full object-cover" loading="lazy" />
-                    ) : (
-                      <span className="grid size-full place-items-center text-muted-foreground">
-                        <ImageOff className="size-5" aria-hidden />
-                      </span>
-                    )}
-                  </div>
-                  <CardHeader className="flex-1 gap-2 px-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={
-                          ad.status === "active"
-                            ? "success"
-                            : ad.status === "draft" || ad.status === "pending_review"
-                              ? "warning"
-                              : "muted"
-                        }
-                        className={ad.status === "rejected" ? "bg-destructive/10 text-destructive" : undefined}
-                      >
-                        {tEnum(`listingStatus.${ad.status}`)}
-                      </Badge>
-                      <Badge variant="outline">{tEnum(`listingType.${ad.listing_type}`)}</Badge>
+          {ads.map((ad) => {
+            const paused = ad.status === "active" && ad.paused_at !== null;
+            const state = manageState(ad);
+            const managed = ad.status === "active" || ad.status === "expired" || ad.status === "rented";
+            return (
+              <li key={ad.id}>
+                <Card className="gap-3 py-5">
+                  <div className="flex gap-4 px-6">
+                    <div className="hidden aspect-[4/3] w-28 shrink-0 overflow-hidden rounded-md border bg-muted sm:block">
+                      {ad.coverPath ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photoUrl(ad.coverPath)} alt="" className="size-full object-cover" loading="lazy" />
+                      ) : (
+                        <span className="grid size-full place-items-center text-muted-foreground">
+                          <ImageOff className="size-5" aria-hidden />
+                        </span>
+                      )}
                     </div>
-                    <CardTitle className="text-base sm:text-lg">{ad.title ?? t("untitled")}</CardTitle>
-                    <CardDescription className="flex items-center gap-1">
-                      <Building2 className="size-3.5 shrink-0" aria-hidden />
-                      {ad.buildingName} · {ad.unit?.label}
-                    </CardDescription>
-                    {ad.status === "draft" && ad.photoCount < MIN_PHOTOS && (
-                      <p className="text-xs text-amber-800">{t("photosNeeded", { count: ad.photoCount, min: MIN_PHOTOS })}</p>
-                    )}
-                    {ad.status === "pending_review" && <p className="text-sm text-muted-foreground">{t("pendingNote")}</p>}
-                    {ad.status === "rejected" && ad.rejection_reason && (
-                      <p className="text-sm break-words whitespace-pre-line text-destructive">
-                        {t("rejectedNote", { reason: ad.rejection_reason })}
-                      </p>
-                    )}
-                    {ad.status === "hidden" && <p className="text-sm text-muted-foreground">{t("hiddenNote")}</p>}
-                  </CardHeader>
-                </div>
-                <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col text-sm">
-                    {ad.monthly_rent !== null && (
-                      <span className="font-semibold">
-                        {tWizard("rentPerMonth", { amount: formatTaka(ad.monthly_rent, locale) })}
+                    <CardHeader className="flex-1 gap-2 px-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            paused
+                              ? "warning"
+                              : ad.status === "active"
+                                ? "success"
+                                : ad.status === "draft" || ad.status === "pending_review"
+                                  ? "warning"
+                                  : "muted"
+                          }
+                          className={ad.status === "rejected" ? "bg-destructive/10 text-destructive" : undefined}
+                        >
+                          {paused ? t("paused") : tEnum(`listingStatus.${ad.status}`)}
+                        </Badge>
+                        <Badge variant="outline">{tEnum(`listingType.${ad.listing_type}`)}</Badge>
+                      </div>
+                      <CardTitle className="text-base sm:text-lg">{ad.title ?? t("untitled")}</CardTitle>
+                      <CardDescription className="flex items-center gap-1">
+                        <Building2 className="size-3.5 shrink-0" aria-hidden />
+                        {ad.buildingName} · {ad.unit?.label}
+                      </CardDescription>
+                      {ad.status === "draft" && ad.photoCount < MIN_PHOTOS && (
+                        <p className="text-xs text-amber-800">{t("photosNeeded", { count: ad.photoCount, min: MIN_PHOTOS })}</p>
+                      )}
+                      {ad.status === "pending_review" && <p className="text-sm text-muted-foreground">{t("pendingNote")}</p>}
+                      {ad.status === "rejected" && ad.rejection_reason && (
+                        <p className="text-sm break-words whitespace-pre-line text-destructive">
+                          {t("rejectedNote", { reason: ad.rejection_reason })}
+                        </p>
+                      )}
+                      {ad.status === "hidden" && <p className="text-sm text-muted-foreground">{t("hiddenNote")}</p>}
+                      {paused && <p className="text-sm text-amber-800">{t("pausedNote")}</p>}
+                      {ad.status === "expired" && (
+                        <p className="text-sm text-muted-foreground">
+                          {ad.unitHeldByOther
+                            ? t("unitHeldNote")
+                            : state.canRenew && state.renewUntil
+                              ? t("expiredNote", { date: formatDate(state.renewUntil, locale) })
+                              : t("expiredLongAgo")}
+                        </p>
+                      )}
+                      {ad.status === "rented" && (
+                        <p className="text-sm text-muted-foreground">
+                          {ad.unitHasTenancy ? t("rentedTenancyNote") : ad.unitHeldByOther ? t("unitHeldNote") : t("rentedNote")}
+                        </p>
+                      )}
+                    </CardHeader>
+                  </div>
+                  <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col text-sm">
+                      {ad.monthly_rent !== null && (
+                        <span className="font-semibold">
+                          {tWizard("rentPerMonth", { amount: formatTaka(ad.monthly_rent, locale) })}
+                        </span>
+                      )}
+                      <span className="text-muted-foreground">
+                        {ad.status === "active" && ad.expires_at
+                          ? t("expires", { date: formatDate(ad.expires_at, locale) })
+                          : ad.status === "expired" && ad.expires_at
+                            ? t("expiredOn", { date: formatDate(ad.expires_at, locale) })
+                            : t("updated", { date: formatDate(ad.updated_at, locale) })}
                       </span>
-                    )}
-                    <span className="text-muted-foreground">
-                      {ad.status === "active" && ad.expires_at
-                        ? t("expires", { date: formatDate(ad.expires_at, locale) })
-                        : t("updated", { date: formatDate(ad.updated_at, locale) })}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-start gap-2">
-                    {(ad.status === "active" || inbox.some((row) => row.listing_id === ad.id)) && (
-                      <RequestsButton
-                        listingId={ad.id}
-                        label={t("requests")}
-                        newText={newRequestsText(inbox.find((row) => row.listing_id === ad.id)?.pending_count ?? 0)}
+                      {state.expiringSoon && state.daysLeft !== null && (
+                        <span className="font-medium text-amber-800">{t("expiresIn", { days: state.daysLeft })}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-start gap-2">
+                      {(ad.status === "active" || inbox.some((row) => row.listing_id === ad.id)) && (
+                        <RequestsButton
+                          listingId={ad.id}
+                          label={t("requests")}
+                          newText={newRequestsText(inbox.find((row) => row.listing_id === ad.id)?.pending_count ?? 0)}
+                        />
+                      )}
+                      {ad.status === "draft" && (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/ads/${ad.id}`}>{t("preview")}</Link>
+                        </Button>
+                      )}
+                      {ad.status === "draft" ? (
+                        <Button asChild size="sm">
+                          <Link href={`/post/${ad.id}`}>{t("continue")}</Link>
+                        </Button>
+                      ) : (
+                        <Button asChild size="sm" variant={ad.status === "active" ? "default" : "outline"}>
+                          <Link href={`/ads/${ad.id}`}>{t("view")}</Link>
+                        </Button>
+                      )}
+                      {(ad.status === "pending_review" || ad.status === "rejected") && (
+                        <ReopenButton listingId={ad.id} status={ad.status} />
+                      )}
+                    </div>
+                  </CardContent>
+                  {managed && (
+                    <CardContent className="border-t pt-3">
+                      <ManageActions
+                        listing={ad}
+                        unitHeldByOther={ad.unitHeldByOther}
+                        unitHasTenancy={ad.unitHasTenancy}
                       />
-                    )}
-                    {ad.status === "draft" && (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ads/${ad.id}`}>{t("preview")}</Link>
-                      </Button>
-                    )}
-                    {ad.status === "draft" ? (
-                      <Button asChild size="sm">
-                        <Link href={`/post/${ad.id}`}>{t("continue")}</Link>
-                      </Button>
-                    ) : (
-                      <Button asChild size="sm" variant={ad.status === "active" ? "default" : "outline"}>
-                        <Link href={`/ads/${ad.id}`}>{t("view")}</Link>
-                      </Button>
-                    )}
-                    {(ad.status === "pending_review" || ad.status === "rejected") && (
-                      <ReopenButton listingId={ad.id} status={ad.status} />
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
+                    </CardContent>
+                  )}
+                </Card>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

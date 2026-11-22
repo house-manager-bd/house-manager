@@ -1,6 +1,8 @@
 import {
   BadgeCheck,
   Ban,
+  CalendarClock,
+  CalendarX,
   CircleCheck,
   CircleX,
   Eye,
@@ -10,6 +12,10 @@ import {
   Star,
   TimerOff,
   Undo2,
+  UserRoundCheck,
+  UserRoundMinus,
+  UserRoundPlus,
+  UserRoundX,
   type LucideIcon,
 } from "lucide-react";
 import { openNotification } from "@/lib/actions/notification";
@@ -33,6 +39,14 @@ const LOOK: Record<NotificationType, { icon: LucideIcon; tone: Tone }> = {
   ad_rejected: { icon: Ban, tone: "bad" },
   ad_hidden: { icon: EyeOff, tone: "bad" },
   ad_restored: { icon: Eye, tone: "good" },
+  ad_expiring: { icon: CalendarClock, tone: "offer" },
+  ad_expired: { icon: CalendarX, tone: "bad" },
+  request_expired: { icon: TimerOff, tone: "bad" },
+  caretaker_invited: { icon: UserRoundPlus, tone: "offer" },
+  caretaker_joined: { icon: UserRoundCheck, tone: "good" },
+  caretaker_declined: { icon: UserRoundX, tone: "bad" },
+  caretaker_removed: { icon: UserRoundMinus, tone: "bad" },
+  caretaker_left: { icon: UserRoundMinus, tone: "plain" },
 };
 
 const TONE: Record<Tone, string> = {

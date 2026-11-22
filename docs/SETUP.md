@@ -364,6 +364,46 @@ Good to know:
 - Production and every preview use the same dev database, so any deployment with these settings sends whatever is waiting, and its links point to that deployment (a preview links to its own branch address, production to `NEXT_PUBLIC_SITE_URL`).
 - If the worker secret leaks, make a new one (steps 2 to 5). The old one stops working as soon as the new hash is saved.
 
+### 8.9 Scheduled job (F10)
+Some things happen without anyone clicking: an ad expires 30 days after it went live (with a reminder 3 days before), an offer expires after 48 hours, a request with no step and no message for 14 days closes, and read notifications older than 90 days are deleted. One database function does all of it, `private.run_scheduled_jobs()`. **Supabase Cron** (the `pg_cron` extension, on the free plan) runs it every 10 minutes. Vercel's own cron cannot: on the Hobby plan it runs at most once a day.
+
+The job's notifications also need emails, and the database cannot send email. So at the end of each run, if emails are waiting, the database calls the live site (`/api/cron/emails`) through the `pg_net` extension, with a **cron secret**. The site checks the secret and sends the waiting emails as in 8.8. A leaked cron secret only lets someone ask the site to send emails that are already waiting.
+
+Until this is set up, everything still works: offers, ads and requests are shown with the right status on every page, and admins can run the job by hand (**Admin**, **Overview**, **Scheduled jobs**, **Run now**). Only the automatic runs are missing.
+
+1. **Cron secret.** On any laptop with Node:
+   ```
+   node -e "console.log('CRON_SECRET='+require('crypto').randomBytes(32).toString('base64url'))"
+   ```
+   Save the secret (43 characters after `CRON_SECRET=`) in the password manager as "House Manager cron secret".
+2. **Vercel**, team `sifat14`, project `house-manager`, **Settings**, **Environment Variables** (https://vercel.com/sifat14/house-manager/settings/environment-variables), **Create New**: name `CRON_SECRET`, type **Secret**, the secret from step 1, environments **Production** and **Preview**. Then redeploy production (and the preview you test), as in 8.7 step 3.
+3. **Supabase**, project `house-manager-dev`:
+   - **Integrations**, **Cron**: enable it (this installs `pg_cron`).
+   - **Database**, **Extensions**: search `pg_net` and turn it on.
+4. **SQL Editor** (after the F10 migration), with the secret from step 1 in place of `<cron secret>`:
+   ```sql
+   select vault.create_secret('https://house-manager-rho-eight.vercel.app', 'house_manager_site_url');
+   select vault.create_secret('<cron secret>', 'house_manager_cron_secret');
+   select cron.schedule('house-manager-jobs', '*/10 * * * *', 'select private.run_scheduled_jobs()');
+   ```
+   Vault keeps the two values encrypted. The site address is production, because production runs main; the job's emails link there. Running `cron.schedule` again with the same name only replaces the job.
+
+**Check** (after 10 minutes):
+```sql
+select status, return_message, start_time
+from cron.job_run_details
+where jobid = (select jobid from cron.job where jobname = 'house-manager-jobs')
+order by start_time desc limit 5;
+```
+- `succeeded` with a JSON message such as `{"ads_expired": 0, "offers_expired": 0, ...}`: the job runs.
+- To see the calls to the site (only made when emails were waiting): `select status_code, content, created from net._http_response order by created desc limit 5;`. `200`: sent. `401`: the cron secret on Vercel and in Vault differ. `404`: production does not have F10 yet (normal before the F10 pull request is merged).
+
+Good to know:
+- Stop the job: `select cron.unschedule('house-manager-jobs');`. Start it again with the `cron.schedule` line above.
+- Change a value later: `select vault.update_secret((select id from vault.secrets where name = 'house_manager_cron_secret'), '<new secret>');` (and the same new value on Vercel).
+- The first run after the F10 migration expires the ads that are past their 30 days. The migration gave every live ad at least 7 more days, so each poster gets the 3 day reminder first.
+- The demo project needs steps 3 and 4 too (with its own site address if it uses another Vercel project).
+
 ---
 
 ## Final checklist

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CircleAlert, Pencil } from "lucide-react";
+import { CircleAlert, CircleCheck, CopyPlus, Pencil } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link, redirect } from "@/i18n/navigation";
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth";
@@ -12,6 +12,7 @@ import { formatBdPhoneLocal } from "@/lib/phone";
 import { MIN_PHOTOS, photoUrl, type ListingPhoto } from "@/lib/photos";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AboutStep } from "@/components/wizard/about-step";
 import { CostsStep } from "@/components/wizard/costs-step";
@@ -36,7 +37,7 @@ const str = (n: number | null | undefined) => (n === null || n === undefined ? "
 
 export default async function DraftPage({ params, searchParams }: PageProps<"/[locale]/post/[listingId]">) {
   const { locale: routeLocale, listingId } = await params;
-  const { step: stepParam } = await searchParams;
+  const { step: stepParam, relisted } = await searchParams;
   const lang = routeLocale as "bn" | "en";
   const [t, tEnum, locale, user, tree, profile] = await Promise.all([
     getTranslations("Wizard"),
@@ -51,8 +52,11 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
   const draft = await getDraftForWizard(user.id, listingId);
   if (!draft) notFound();
   const { listing: l, contact, unit, building, photos } = draft;
-  // Submitted ads are managed from My ads (editing live ads comes in F10).
-  if (l.status !== "draft") return redirect({ href: "/dashboard/ads", locale: lang });
+  // F10: a live ad (paused or not) is edited in the same steps. Ads waiting
+  // for review, rejected, hidden or ended are managed from My ads.
+  const live = l.status === "active";
+  if (l.status !== "draft" && !live) return redirect({ href: "/dashboard/ads", locale: lang });
+  const relistedCount = typeof relisted === "string" && /^\d$/.test(relisted) ? Number(relisted) : null;
 
   const step = [3, 4, 5, 6, 7].includes(Number(stepParam)) ? (Number(stepParam) as 3 | 4 | 5 | 6 | 7) : 3;
   const area = areaLabel(tree, building.area_id, locale).split(",")[0];
@@ -68,12 +72,27 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:py-10">
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t("title")}</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">{live ? t("editTitle") : t("title")}</h1>
         <p className="text-muted-foreground">
           {t("unitLine", { unit: unit.label, building: building.name })} · {area}
         </p>
       </div>
       <WizardProgress current={step} listingId={l.id} />
+      {live && (
+        <Alert>
+          <Pencil aria-hidden />
+          <span className="text-foreground">{t("editIntro")}</span>
+        </Alert>
+      )}
+      {relistedCount !== null && l.relisted_from && !live && (
+        <Alert variant="success">
+          <CopyPlus aria-hidden />
+          <span className="flex flex-col gap-1">
+            <span className="font-semibold">{t("relistedTitle")}</span>
+            <span className="text-foreground">{t("relistedBody", { count: relistedCount })}</span>
+          </span>
+        </Alert>
+      )}
       {l.rejection_reason && (
         <Alert variant="destructive">
           <CircleAlert aria-hidden />
@@ -90,13 +109,16 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
       <Card>
         <CardHeader>
           <CardTitle className="hidden sm:block">{step === 7 ? t("reviewTitle") : stepTitle}</CardTitle>
-          {step === 6 && <CardDescription>{t("photosHint", { min: MIN_PHOTOS })}</CardDescription>}
+          {step === 6 && (
+            <CardDescription>{live ? t("editPhotosHint") : t("photosHint", { min: MIN_PHOTOS })}</CardDescription>
+          )}
           {step === 7 && <CardDescription>{t("reviewHint")}</CardDescription>}
         </CardHeader>
         <CardContent>
           {step === 3 && (
             <AboutStep
               listingId={l.id}
+              live={live}
               defaults={{
                 postedAs: l.posted_as,
                 unitKind: unit.unit_kind,
@@ -112,6 +134,7 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
           {step === 4 && (
             <CostsStep
               listingId={l.id}
+              live={live}
               hasGas={building.gas !== "none"}
               defaults={{
                 monthlyRent: str(l.monthly_rent),
@@ -128,6 +151,7 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
           {step === 5 && (
             <TenantsStep
               listingId={l.id}
+              live={live}
               defaults={{
                 capacity: unit.capacity,
                 listingType: l.listing_type,
@@ -141,13 +165,14 @@ export default async function DraftPage({ params, searchParams }: PageProps<"/[l
               }}
             />
           )}
-          {step === 6 && <PhotosStep listingId={l.id} userId={user.id} initialPhotos={photos} />}
+          {step === 6 && <PhotosStep listingId={l.id} userId={user.id} initialPhotos={photos} live={live} />}
           {step === 7 && (
             <Review
               t={t}
               tEnum={tEnum}
               locale={locale}
               listingId={l.id}
+              live={live}
               missing={missing}
               photos={photos}
               review={(profile?.trust_level ?? 0) === 0 ? "first" : l.rejection_reason ? "again" : "normal"}
@@ -221,6 +246,7 @@ function Review({
   t,
   locale,
   listingId,
+  live,
   missing,
   photos,
   review,
@@ -230,6 +256,8 @@ function Review({
   tEnum: Awaited<ReturnType<typeof getTranslations<"Enums">>>;
   locale: string;
   listingId: string;
+  /** F10: a live ad shows its saved changes instead of the publish button. */
+  live: boolean;
   missing: string[];
   photos: ListingPhoto[];
   review: "first" | "again" | "normal";
@@ -326,7 +354,27 @@ function Review({
         </section>
       ))}
 
-      <SubmitPanel listingId={listingId} canSubmit={missing.length === 0} review={review} />
+      {live ? (
+        <div className="flex flex-col gap-4 border-t pt-5">
+          <Alert variant="success">
+            <CircleCheck aria-hidden />
+            <span className="flex flex-col gap-1">
+              <span className="font-semibold">{t("doneTitle")}</span>
+              <span className="text-foreground">{t("doneBody")}</span>
+            </span>
+          </Alert>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+            <Button asChild variant="ghost">
+              <Link href="/dashboard/ads">{t("backToMyAds")}</Link>
+            </Button>
+            <Button asChild size="lg">
+              <Link href={`/ads/${listingId}`}>{t("viewAd")}</Link>
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <SubmitPanel listingId={listingId} canSubmit={missing.length === 0} review={review} />
+      )}
     </div>
   );
 }

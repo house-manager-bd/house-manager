@@ -15,6 +15,7 @@ import {
   Lock,
   MapPin,
   MessagesSquare,
+  Pause,
   Send,
   ShieldCheck,
   Star,
@@ -25,6 +26,8 @@ import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, isAdminProfile } from "@/lib/auth";
 import { getAdPage, getMyReport, type AdPage } from "@/lib/data/ad";
+import { getUnitHold } from "@/lib/data/listings";
+import { getSavedIds } from "@/lib/data/saved";
 import { getListingModeration } from "@/lib/data/admin";
 import { getInbox, getMyOpenRequestCount, getMyRequestForListing } from "@/lib/data/requests";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
@@ -40,6 +43,8 @@ import { ReportAd } from "@/components/ad/report-ad";
 import { RevealPhone } from "@/components/ad/reveal-phone";
 import { ShareButton } from "@/components/ad/share-button";
 import { AdminAdPanel } from "@/components/admin/admin-ad-panel";
+import { ManageActions } from "@/components/ads/manage-actions";
+import { SaveButton } from "@/components/ads/save-button";
 import { RequestForm } from "@/components/requests/request-form";
 import { Alert } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -93,8 +98,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[lis
         : undefined,
     },
     twitter: { card: cover ? "summary_large_image" : "summary" },
-    // Drafts and paused ads are only seen by their poster; keep them out of search.
-    robots: l.status === "active" ? undefined : { index: false, follow: false },
+    // Ads that are not live, and paused ads (F10), stay out of search engines.
+    robots: l.status === "active" && !l.paused_at ? undefined : { index: false, follow: false },
   };
 }
 
@@ -125,14 +130,19 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
   const canReport = l.status === "active" && !ownView;
   // F6: members can send a request for a live ad; the poster sees how many came in.
   const canRequest = Boolean(viewer) && l.status === "active" && !ownView;
-  const [moderation, myReport, myRequest, myPrivate, openRequests, inbox] = await Promise.all([
+  // F10: a paused ad keeps its page, but takes no new requests or phone reveals.
+  const paused = l.status === "active" && l.paused_at !== null;
+  const [moderation, myReport, myRequest, myPrivate, openRequests, inbox, savedIds, unitHold] = await Promise.all([
     isAdmin ? getListingModeration(l.id) : Promise.resolve(null),
     viewer && canReport ? getMyReport(l.id, viewer.id) : Promise.resolve(null),
     viewer && canRequest ? getMyRequestForListing(l.id, viewer.id) : Promise.resolve(null),
     canRequest ? getCurrentPrivateProfile() : Promise.resolve(null),
     viewer && canRequest ? getMyOpenRequestCount(viewer.id) : Promise.resolve(0),
     ownView ? getInbox() : Promise.resolve([]),
+    viewer && !ownView && l.status === "active" ? getSavedIds([l.id]) : Promise.resolve(new Set<string>()),
+    viewer?.isPoster ? getUnitHold(l.id, l.unit_id) : Promise.resolve(null),
   ]);
+  const hasRequestHere = Boolean(myRequest?.open || myRequest?.confirmed);
   const newRequests = inbox.find((row) => row.listing_id === l.id)?.pending_count ?? 0;
   const isMess = l.listing_type === "mess_seat";
   const rules = building.house_rules ?? {};
@@ -245,6 +255,15 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
             </Alert>
           )
         ))}
+      {paused && !ownView && !isAdmin && (
+        <Alert>
+          <Pause aria-hidden />
+          <span className="flex flex-col gap-1">
+            <span className="font-medium text-foreground">{t("pausedTitle")}</span>
+            <span className="text-muted-foreground">{t("pausedBody")}</span>
+          </span>
+        </Alert>
+      )}
       {moderation && viewer && (
         <AdminAdPanel listingId={l.id} moderation={moderation} viewerId={viewer.id} contact={ownContact} />
       )}
@@ -260,6 +279,9 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
             <div className="flex flex-wrap items-center gap-2">
               <Badge>{tEnum(`listingType.${l.listing_type}`)}</Badge>
               {l.rent_negotiable && <Badge variant="warning">{t("negotiable")}</Badge>}
+              {viewer && !ownView && l.status === "active" && (
+                <SaveButton listingId={l.id} initialSaved={savedIds.has(l.id)} className="ml-auto" />
+              )}
             </div>
             <h1 className="text-2xl leading-snug font-bold sm:text-3xl">{title}</h1>
             <p className="flex items-start gap-1.5 text-muted-foreground">
@@ -414,6 +436,20 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
               {ownView ? (
                 <>
                   <p className="rounded-md bg-secondary px-3 py-2 text-sm text-secondary-foreground">{t("yourAd")}</p>
+                  {viewer?.isPoster && (l.status === "active" || l.status === "expired" || l.status === "rented") && (
+                    <div className="flex flex-col gap-2">
+                      <h2 className="text-sm font-semibold">{t("manageTitle")}</h2>
+                      {paused && <p className="text-sm text-amber-800">{t("pausedOwner")}</p>}
+                      {l.status === "active" && l.expires_at && (
+                        <p className="text-sm text-muted-foreground">{t("liveUntil", { date: formatDate(l.expires_at, locale) })}</p>
+                      )}
+                      <ManageActions
+                        listing={l}
+                        unitHeldByOther={unitHold?.unitHeldByOther}
+                        unitHasTenancy={unitHold?.unitHasTenancy}
+                      />
+                    </div>
+                  )}
                   <Link
                     href={`/dashboard/ads/${l.id}/requests`}
                     className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-sm hover:bg-muted"
@@ -432,7 +468,7 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
                   />
                 </>
               ) : viewer ? (
-                l.status === "active" && <RevealPhone listingId={l.id} initial={null} />
+                l.status === "active" && (!paused || hasRequestHere) && <RevealPhone listingId={l.id} initial={null} />
               ) : (
                 <div className="flex flex-col gap-3">
                   <p className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -462,6 +498,7 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
               <CardContent className="flex flex-col gap-4">
                 <RequestPanel
                   listing={l}
+                  paused={paused}
                   myRequest={myRequest}
                   justSent={query.request === "sent"}
                   banned={profile.is_banned}
@@ -529,6 +566,7 @@ type RequestState = Awaited<ReturnType<typeof getMyRequestForListing>>;
  */
 function RequestPanel({
   listing: l,
+  paused,
   myRequest,
   justSent,
   banned,
@@ -540,6 +578,8 @@ function RequestPanel({
   tErrors,
 }: {
   listing: AdPage["listing"];
+  /** F10: no new requests while the ad is paused. */
+  paused: boolean;
   myRequest: RequestState | null;
   justSent: boolean;
   banned: boolean;
@@ -623,7 +663,9 @@ function RequestPanel({
   }
 
   let blocked: ReactNode = null;
-  if (banned) {
+  if (paused) {
+    blocked = <p className="text-sm text-muted-foreground">{tErrors("listingPaused")}</p>;
+  } else if (banned) {
     blocked = <p className="text-sm text-muted-foreground">{tErrors("accountBanned")}</p>;
   } else if (myRequest?.declined) {
     const d = myRequest.declined;

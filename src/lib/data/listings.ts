@@ -5,12 +5,18 @@ import type { ListingRow, UnitRow } from "@/types/database";
 import { getMyBuilding, type BuildingDetail } from "./properties";
 
 export type MyListing = ListingRow & {
-  unit: Pick<UnitRow, "id" | "label" | "unit_kind"> | null;
+  unit: Pick<UnitRow, "id" | "label" | "unit_kind" | "status"> | null;
   buildingName: string;
   areaId: number | null;
   coverPath: string | null;
   photoCount: number;
+  /** F10: another ad (a draft too) holds the unit, so this one cannot be renewed or re-listed. */
+  unitHeldByOther: boolean;
+  /** F10: a tenancy made on the site is active on the unit (it ends in House Manage). */
+  unitHasTenancy: boolean;
 };
+
+const OPEN: ListingRow["status"][] = ["draft", "pending_review", "active", "hidden"];
 
 /** The user's own ads, newest first. */
 export async function getMyListings(userId: string): Promise<MyListing[]> {
@@ -25,10 +31,10 @@ export async function getMyListings(userId: string): Promise<MyListing[]> {
   const unitIds = [...new Set(listings.map((l) => l.unit_id))];
   const { data: units } = await supabase
     .from("units")
-    .select("id, label, unit_kind, building_id")
+    .select("id, label, unit_kind, status, building_id")
     .in("id", unitIds);
   const buildingIds = [...new Set((units ?? []).map((u) => u.building_id))];
-  const [{ data: buildings }, { data: photos }] = await Promise.all([
+  const [{ data: buildings }, { data: photos }, { data: unitAds }, { data: tenancies }] = await Promise.all([
     buildingIds.length
       ? supabase.from("buildings").select("id, name, area_id").in("id", buildingIds)
       : Promise.resolve({ data: [] as { id: string; name: string; area_id: number }[] }),
@@ -39,6 +45,9 @@ export async function getMyListings(userId: string): Promise<MyListing[]> {
         "listing_id",
         listings.map((l) => l.id),
       ),
+    // F10: other ads on the same units (an ad by a caretaker or co-owner too).
+    supabase.from("listings").select("id, unit_id, status").in("unit_id", unitIds).in("status", OPEN),
+    supabase.from("tenancies").select("unit_id").in("unit_id", unitIds).eq("status", "active"),
   ]);
 
   return listings.map((l) => {
@@ -46,11 +55,13 @@ export async function getMyListings(userId: string): Promise<MyListing[]> {
     const building = buildings?.find((b) => b.id === unit?.building_id);
     return {
       ...l,
-      unit: unit ? { id: unit.id, label: unit.label, unit_kind: unit.unit_kind } : null,
+      unit: unit ? { id: unit.id, label: unit.label, unit_kind: unit.unit_kind, status: unit.status } : null,
       buildingName: building?.name ?? "",
       areaId: building?.area_id ?? null,
       coverPath: photos?.find((p) => p.listing_id === l.id && p.is_cover)?.storage_path ?? null,
       photoCount: photos?.filter((p) => p.listing_id === l.id).length ?? 0,
+      unitHeldByOther: (unitAds ?? []).some((a) => a.unit_id === l.unit_id && a.id !== l.id),
+      unitHasTenancy: (tenancies ?? []).some((t) => t.unit_id === l.unit_id),
     };
   });
 }
@@ -98,4 +109,20 @@ export async function getDraftForWizard(
     unit,
     building,
   };
+}
+
+/**
+ * F10: for the poster's own ad page, whether another ad holds the unit now,
+ * and whether a tenancy made on the site is active on it.
+ */
+export async function getUnitHold(
+  listingId: string,
+  unitId: string,
+): Promise<{ unitHeldByOther: boolean; unitHasTenancy: boolean }> {
+  const supabase = await createClient();
+  const [{ data: others }, { data: tenancies }] = await Promise.all([
+    supabase.from("listings").select("id").eq("unit_id", unitId).neq("id", listingId).in("status", OPEN),
+    supabase.from("tenancies").select("id").eq("unit_id", unitId).eq("status", "active").limit(1),
+  ]);
+  return { unitHeldByOther: Boolean(others?.length), unitHasTenancy: Boolean(tenancies?.length) };
 }

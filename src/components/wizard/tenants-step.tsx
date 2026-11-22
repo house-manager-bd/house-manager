@@ -16,13 +16,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormError } from "@/components/auth/form-alert";
 import { FormField, fieldAria } from "@/components/auth/form-field";
-import { StepActions, wantsExit } from "./step-shell";
+import { StepActions, afterSaveHref, wantsExit } from "./step-shell";
 
 export function TenantsStep({
   listingId,
+  live = false,
   defaults,
 }: {
   listingId: string;
+  /** F10: editing a live ad. */
+  live?: boolean;
   defaults: TenantsStepInput;
 }) {
   const t = useTranslations("Wizard");
@@ -48,7 +51,7 @@ export function TenantsStep({
     startTransition(async () => {
       const result = await saveTenantsStep(listingId, values);
       if (!result.ok) return setServerError(result.error);
-      router.push(exit ? "/dashboard/ads?saved=1" : `/post/${listingId}?step=6`);
+      router.push(afterSaveHref(listingId, 6, exit, live, result.data.status));
     });
   });
 
@@ -103,7 +106,7 @@ export function TenantsStep({
         </FormField>
       </div>
 
-      <StepActions backHref={`/post/${listingId}?step=4`} pending={pending} />
+      <StepActions backHref={`/post/${listingId}?step=4`} pending={pending} live={live} />
     </form>
   );
 }

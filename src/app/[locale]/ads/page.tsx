@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { CircleAlert, List, Map as MapIcon, SearchX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link, redirect } from "@/i18n/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import { getLocationTree, type LocationTree } from "@/lib/data/locations";
+import { getSavedIds } from "@/lib/data/saved";
 import { searchListings } from "@/lib/data/search";
 import { areaLabels, placeAreaIds, placeGroups, placeName, placeView } from "@/lib/search";
 import { cn } from "@/lib/utils";
@@ -21,6 +23,7 @@ import { ActiveFilters } from "@/components/search/active-filters";
 import { FilterPanel } from "@/components/search/filter-panel";
 import { FilterSheet } from "@/components/search/filter-sheet";
 import { ListingCard } from "@/components/search/listing-card";
+import { SaveButton } from "@/components/ads/save-button";
 import { Pagination } from "@/components/search/pagination";
 import { SearchBar, type PlaceName } from "@/components/search/search-bar";
 import { SearchMapLazy } from "@/components/search/search-map-lazy";
@@ -84,6 +87,10 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
     areaIds,
     isMap ? { limit: MAP_LIMIT, offset: 0 } : { limit: PAGE_SIZE, offset: (filters.page - 1) * PAGE_SIZE },
   );
+
+  // F10: hearts for a signed-in member (one small query for the cards on this page).
+  const user = isMap ? null : await getCurrentUser();
+  const savedIds = user ? await getSavedIds(results.map((r) => r.id)) : new Set<string>();
 
   // An old link to a page that no longer exists (ads were rented or expired).
   if (ok && !isMap && results.length === 0 && filters.page > 1) {
@@ -192,8 +199,16 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
             <>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {results.map((ad, i) => (
-                  <li key={ad.id} className="flex">
+                  <li key={ad.id} className="relative flex">
                     <ListingCard ad={ad} areaLabel={labels[ad.area_id] ?? ""} priority={i < 2} className="w-full" />
+                    {user && (
+                      <SaveButton
+                        listingId={ad.id}
+                        initialSaved={savedIds.has(ad.id)}
+                        variant="overlay"
+                        className="absolute top-2 right-2 z-10"
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

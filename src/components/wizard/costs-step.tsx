@@ -24,14 +24,17 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { FormError } from "@/components/auth/form-alert";
 import { FormField, fieldAria } from "@/components/auth/form-field";
-import { StepActions, wantsExit } from "./step-shell";
+import { StepActions, afterSaveHref, wantsExit } from "./step-shell";
 
 export function CostsStep({
   listingId,
+  live = false,
   defaults,
   hasGas,
 }: {
   listingId: string;
+  /** F10: editing a live ad. */
+  live?: boolean;
   defaults: CostsStepInput;
   /** The building has a gas connection, so ask who pays the gas bill. */
   hasGas: boolean;
@@ -61,7 +64,7 @@ export function CostsStep({
     startTransition(async () => {
       const result = await saveCostsStep(listingId, values);
       if (!result.ok) return setServerError(result.error);
-      router.push(exit ? "/dashboard/ads?saved=1" : `/post/${listingId}?step=5`);
+      router.push(afterSaveHref(listingId, 5, exit, live, result.data.status));
     });
   });
 
@@ -117,7 +120,7 @@ export function CostsStep({
         <Input {...fieldAria("otherCharges", err("otherCharges"))} placeholder={t("otherChargesPlaceholder")} {...form.register("otherCharges")} />
       </FormField>
 
-      <StepActions backHref={`/post/${listingId}?step=3`} pending={pending} />
+      <StepActions backHref={`/post/${listingId}?step=3`} pending={pending} live={live} />
     </form>
   );
 }

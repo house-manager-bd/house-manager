@@ -45,9 +45,18 @@ export type NotificationTextKey =
   | "adApproved"
   | "adRejected"
   | "adHidden"
-  | "adRestored";
+  | "adRestored"
+  | "adExpiring"
+  | "adExpired"
+  | "requestExpiredSeeker"
+  | "requestExpiredLandlord"
+  | "caretakerInvited"
+  | "caretakerJoined"
+  | "caretakerDeclined"
+  | "caretakerRemoved"
+  | "caretakerLeft";
 
-const TEXT_KEYS: Record<Exclude<NotificationType, "offer_expired">, NotificationTextKey> = {
+const TEXT_KEYS: Record<Exclude<NotificationType, "offer_expired" | "request_expired">, NotificationTextKey> = {
   request_new: "requestNew",
   request_shortlisted: "requestShortlisted",
   request_declined: "requestDeclined",
@@ -59,23 +68,45 @@ const TEXT_KEYS: Record<Exclude<NotificationType, "offer_expired">, Notification
   ad_rejected: "adRejected",
   ad_hidden: "adHidden",
   ad_restored: "adRestored",
+  ad_expiring: "adExpiring",
+  ad_expired: "adExpired",
+  caretaker_invited: "caretakerInvited",
+  caretaker_joined: "caretakerJoined",
+  caretaker_declined: "caretakerDeclined",
+  caretaker_removed: "caretakerRemoved",
+  caretaker_left: "caretakerLeft",
 };
 
 export function notificationTextKey(type: NotificationType, data: NotificationData): NotificationTextKey {
   if (type === "offer_expired") return data.side === "landlord" ? "offerExpiredLandlord" : "offerExpiredSeeker";
+  if (type === "request_expired") return data.side === "landlord" ? "requestExpiredLandlord" : "requestExpiredSeeker";
   return TEXT_KEYS[type];
 }
 
-/** request: the request's page; ad: the public ad page; myAds: the poster's ads (with the reason). */
-export type NotificationTargetKind = "request" | "ad" | "myAds";
+/**
+ * request: the request's page; ad: the public ad page; myAds: the poster's
+ * ads (with the reason, or the Renew button); properties: My properties or
+ * one building's page (F10 caretakers).
+ */
+export type NotificationTargetKind = "request" | "ad" | "myAds" | "properties";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Where opening a notification leads (a path without the language prefix). */
 export function notificationTarget(
-  n: Pick<NotificationRow, "type" | "request_id" | "listing_id">,
+  n: Pick<NotificationRow, "type" | "request_id" | "listing_id"> & { data?: NotificationData | null },
 ): { href: string; kind: NotificationTargetKind } {
   if (n.request_id) return { href: `/dashboard/requests/${n.request_id}`, kind: "request" };
   if ((n.type === "ad_approved" || n.type === "ad_restored") && n.listing_id) {
     return { href: `/ads/${n.listing_id}`, kind: "ad" };
+  }
+  if (n.type.startsWith("caretaker_")) {
+    const building = n.data?.building_id;
+    // The invited member and a removed caretaker cannot open the building's page.
+    if (building && UUID_RE.test(building) && n.type !== "caretaker_invited" && n.type !== "caretaker_removed") {
+      return { href: `/dashboard/properties/${building}`, kind: "properties" };
+    }
+    return { href: "/dashboard/properties", kind: "properties" };
   }
   return { href: "/dashboard/ads", kind: "myAds" };
 }

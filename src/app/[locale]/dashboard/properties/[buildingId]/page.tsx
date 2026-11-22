@@ -6,9 +6,11 @@ import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getMyBuilding } from "@/lib/data/properties";
+import { getBuildingTeam } from "@/lib/data/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { TeamCard } from "@/components/properties/team-card";
 import { UnitsManager } from "@/components/properties/units-manager";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -31,6 +33,11 @@ export default async function BuildingPage({
   if (!user) return null;
   const b = await getMyBuilding(user.id, buildingId);
   if (!b) notFound();
+  // F10: the owner and caretakers (a subletting tenant's own record has no team).
+  const [tTeam, team] = await Promise.all([
+    getTranslations("Team"),
+    b.myRole === "tenant" ? Promise.resolve([]) : getBuildingTeam(b.id),
+  ]);
 
   const rules = b.house_rules ?? {};
   const ruleLines = [
@@ -81,6 +88,17 @@ export default async function BuildingPage({
           <UnitsManager buildingId={b.id} units={b.units} userId={user.id} />
         </CardContent>
       </Card>
+
+      {b.myRole !== "tenant" && (
+        <Card id="team" className="scroll-mt-20">
+          <CardHeader>
+            <CardTitle>{tTeam("title")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TeamCard buildingId={b.id} team={team} userId={user.id} isOwner={b.myRole === "owner"} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

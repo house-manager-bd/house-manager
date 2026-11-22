@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { buildingSchema, unitSchema, type BuildingInput, type UnitInput } from "@/lib/validation/property";
 import { dbErrorKey, fromZodError, type ActionResult } from "./result";
@@ -86,6 +87,19 @@ export async function deleteUnit(buildingId: string, unitId: string): Promise<Ac
     .eq("building_id", buildingId);
   if (error) return { ok: false, error: error.code === "23503" ? "unitHasAds" : dbErrorKey(error) };
   if (!count) return { ok: false, error: "notAllowed" };
+  revalidatePath("/[locale]/dashboard", "layout");
+  return { ok: true };
+}
+
+/**
+ * F10: an occupied unit is free again (the tenant found outside the site
+ * moved out). A tenancy made on the site ends in House Manage instead.
+ */
+export async function markUnitVacant(unitId: string): Promise<ActionResult> {
+  if (!z.uuid().safeParse(unitId).success) return { ok: false, error: "generic" };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("mark_unit_vacant", { p_unit_id: unitId });
+  if (error) return { ok: false, error: dbErrorKey(error) };
   revalidatePath("/[locale]/dashboard", "layout");
   return { ok: true };
 }

@@ -24,7 +24,7 @@ export async function openNotification(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const { data: n } = await supabase
     .from("notifications")
-    .select("id, type, request_id, listing_id, read_at")
+    .select("id, type, request_id, listing_id, data, read_at")
     .eq("id", parsed.data)
     .maybeSingle();
   if (!n) return redirect({ href: "/dashboard/notifications", locale });
