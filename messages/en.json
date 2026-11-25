@@ -134,7 +134,9 @@
     "offersWaitingCount": "{count, plural, one {# offer waiting for the member's answer} other {# offers waiting for members' answers}}",
     "offersToAnswerCount": "{count, plural, one {# offer to answer. It expires after 48 hours.} other {# offers to answer. Each expires after 48 hours.}}",
     "confirmedPlacesCount": "{count, plural, one {You rent # place through House Manager} other {You rent # places through House Manager}}",
-    "offerBadge": "{count, plural, one {# offer} other {# offers}}"
+    "offerBadge": "{count, plural, one {# offer} other {# offers}}",
+    "savedCount": "{count, plural, =0 {No saved ads} one {# saved ad} other {# saved ads}}",
+    "expiringCount": "{count, plural, one {# ad expires within 7 days. Renew it from My ads.} other {# ads expire within 7 days. Renew them from My ads.}}"
   },
   "Profile": {
     "title": "Your profile",
@@ -242,7 +244,20 @@
     "unitOccupied": "This unit is rented. A new ad can be posted when the tenancy ends.",
     "alreadyTenant": "You already rent a place through this ad.",
     "nidNotReady": "Accepting offers is not set up on this site yet. Please try again later.",
-    "nidUnreadable": "This NID number could not be read. Ask the tenant to share it again."
+    "nidUnreadable": "This NID number could not be read. Ask the tenant to share it again.",
+    "listingPaused": "This ad is paused, so it is not taking new requests right now.",
+    "renewTooEarly": "You can renew an ad in its last 7 days.",
+    "renewTooLate": "This ad expired more than 30 days ago. Re-list the place instead.",
+    "unitHasTenancy": "A tenant who rents this unit through House Manager still lives here. The unit becomes free again when that tenancy ends.",
+    "slotsBelowOffers": "Open offers already hold more seats than that. Take an offer back first, or keep more seats.",
+    "photoMinimum": "A live ad needs at least 4 photos. Add a new photo before you remove this one.",
+    "savedLimit": "You can save up to 200 ads. Remove some saved ads first.",
+    "inviteSelf": "You cannot invite yourself.",
+    "alreadyManager": "This member already manages this building.",
+    "inviteLimit": "Too many invitations. Cancel some waiting invitations, or try again tomorrow.",
+    "inviteInvalid": "This invitation is no longer valid, because the person who sent it no longer owns the building.",
+    "cannotRemoveManager": "The owner and the person who added the building cannot be removed.",
+    "draftHasRequests": "This draft has requests from members, so it cannot be deleted. Send it in again instead."
   },
   "Footer": {
     "tagline": "Broker-free rentals for Bangladesh.",
@@ -432,7 +447,10 @@
     "houseRules": "House rules",
     "saved": "Saved.",
     "unitSaved": "Unit saved.",
-    "walkMinutes": "{count, number} min walk"
+    "walkMinutes": "{count, number} min walk",
+    "markVacant": "Mark as vacant",
+    "markVacantConfirm": "Is {label} free again? It can then take a new ad.",
+    "tenantOnSite": "Tenant through House Manager"
   },
   "BuildingForm": {
     "stepOf": "Part {current, number} of {total, number}",
@@ -604,11 +622,22 @@
     "trustedNote": "Most ads go live straight away. Our team checks a few ads first.",
     "rejectedBeforeTitle": "This ad was not approved",
     "rejectedBeforeBody": "Fix it, then send it again. Our team checks it once more.",
-    "rejectedReason": "Reason: {reason}"
+    "rejectedReason": "Reason: {reason}",
+    "editTitle": "Edit your ad",
+    "editIntro": "Changes go live as you save each step. If a change needs an admin's check, the ad leaves search until the check is done.",
+    "saveExit": "Save and exit",
+    "typeFixed": "The ad type stays the same on a live ad. To use another type, mark the ad as rented and re-list the place.",
+    "doneTitle": "All changes are saved",
+    "doneBody": "Your ad is live with the changes.",
+    "viewAd": "View your ad",
+    "backToMyAds": "Back to My ads",
+    "relistedTitle": "A new draft from your old ad",
+    "relistedBody": "{count, plural, =0 {The details are filled in. Add the photos again in step 6.} one {The details and # photo are filled in.} other {The details and # photos are filled in.}} Check each step, then send it in.",
+    "editPhotosHint": "A live ad keeps at least 4 photos. New photos show on the ad at once."
   },
   "Ads": {
     "title": "My ads",
-    "subtitle": "Drafts, ads waiting for review and published ads.",
+    "subtitle": "Drafts, ads waiting for review, live ads and ads that have ended.",
     "empty": "You have no ads yet.",
     "postAd": "Post an ad",
     "continue": "Continue",
@@ -626,7 +655,37 @@
     "fixAndResend": "Fix and send again",
     "opening": "Opening...",
     "requests": "Requests",
-    "requestsNew": "{count, plural, one {# new} other {# new}}"
+    "requestsNew": "{count, plural, one {# new} other {# new}}",
+    "paused": "Paused",
+    "pausedNote": "Paused: not in search and not taking new requests. Open requests and messages carry on.",
+    "expiresIn": "{days, plural, =0 {Expires today} one {Expires in # day} other {Expires in # days}}",
+    "expiredOn": "Expired on {date}",
+    "expiredNote": "Not in search any more. Renew it until {date} to put it back for 30 days.",
+    "expiredLongAgo": "Not in search any more. Re-list the place to advertise it again.",
+    "rentedNote": "Rented. When the place is free again, re-list it with the same details and photos.",
+    "rentedTenancyNote": "Rented through House Manager. The place can be re-listed when that tenancy ends.",
+    "unitHeldNote": "Another ad now holds this unit.",
+    "edit": "Edit",
+    "pause": "Pause",
+    "resume": "Resume",
+    "renew": "Renew for 30 days",
+    "markRented": "Mark as rented",
+    "markRentedConfirm": "Mark this ad as rented? It leaves search, and every member still waiting is told that the place is no longer available. You can re-list the place later.",
+    "pauseConfirm": "Pause this ad? It leaves search and takes no new requests until you resume it. Open requests and messages carry on.",
+    "relist": "Re-list",
+    "relistConfirm": "Is the place free again? A new draft is made with the old details and photos, for you to check and send in.",
+    "working": "Please wait...",
+    "renewedTitle": "Renewed",
+    "renewedBody": "Your ad is live until {date}.",
+    "pausedTitle": "Paused",
+    "pausedBody": "Your ad is out of search and takes no new requests.",
+    "resumedTitle": "Live again",
+    "resumedBody": "Your ad is back in search and takes requests.",
+    "rentedTitle": "Marked as rented",
+    "rentedBody": "The members who were still waiting have been told.",
+    "editedTitle": "Your changes are live",
+    "reviewTitle": "Your changes wait for a check",
+    "reviewBody": "One of the changes needs an admin's check, so the ad is out of search until then, usually within a day."
   },
   "Search": {
     "title": "Homes for rent",
@@ -843,7 +902,12 @@
     "rejectedBody": "Reason: {reason}",
     "hiddenTitle": "Hidden",
     "hiddenBody": "This ad is hidden while our team checks it. You do not need to do anything now.",
-    "adminView": "You can see this page because you are an admin."
+    "adminView": "You can see this page because you are an admin.",
+    "pausedTitle": "This ad is paused",
+    "pausedBody": "The landlord is not taking new requests right now. Save the ad to find it again later.",
+    "pausedOwner": "Paused: your ad is not in search and takes no new requests.",
+    "liveUntil": "Live until {date}",
+    "manageTitle": "Manage this ad"
   },
   "Report": {
     "open": "Report this ad",
@@ -983,7 +1047,13 @@
     "unbannedDone": "The ban is lifted.",
     "previousPage": "Previous",
     "nextPage": "Next",
-    "pageOf": "Page {page, number} of {total, number}"
+    "pageOf": "Page {page, number} of {total, number}",
+    "jobsTitle": "Scheduled jobs",
+    "jobsBody": "Supabase Cron runs these every 10 minutes: offers past 48 hours, requests with no step or message for 14 days, expiry reminders, ads past 30 days, and notifications read more than 90 days ago. Run them now to test.",
+    "jobsRun": "Run now",
+    "jobsRunning": "Running...",
+    "jobsDone": "Done",
+    "jobsResult": "{offers, plural, one {# offer expired} other {# offers expired}}, {requests, plural, one {# request closed} other {# requests closed}}, {expired, plural, one {# ad expired} other {# ads expired}}, {reminded, plural, one {# reminder} other {# reminders}}, {deleted, plural, one {# old notification deleted} other {# old notifications deleted}}."
   },
   "Requests": {
     "title": "My requests",
@@ -1271,7 +1341,7 @@
   },
   "Notifications": {
     "title": "Notifications",
-    "subtitle": "Requests, offers and decisions about your ads, newest first.",
+    "subtitle": "Requests, offers, your ads and your buildings, newest first.",
     "bellLabel": "{count, plural, =0 {Notifications} one {Notifications, # unread} other {Notifications, # unread}}",
     "markAllRead": "Mark all as read",
     "marking": "Marking...",
@@ -1341,6 +1411,42 @@
       "adRestored": {
         "title": "Your ad is live again",
         "body": "An admin checked your ad and put it back in search results."
+      },
+      "adExpiring": {
+        "title": "Your ad expires soon",
+        "body": "It leaves search on {deadline}. Renew it from My ads to keep it live for 30 more days."
+      },
+      "adExpired": {
+        "title": "Your ad has expired",
+        "body": "It is no longer in search results. You can renew it from My ads within 30 days."
+      },
+      "requestExpiredSeeker": {
+        "title": "Your request has closed",
+        "body": "Nothing happened on it for 14 days. If the place is still free, you can send a new request."
+      },
+      "requestExpiredLandlord": {
+        "title": "A request has closed",
+        "body": "{name}'s request had no answer and no message for 14 days, so it closed."
+      },
+      "caretakerInvited": {
+        "title": "You are invited as a caretaker",
+        "body": "{name} invited you to help manage their building. Open My properties to accept or decline."
+      },
+      "caretakerJoined": {
+        "title": "A caretaker joined your building",
+        "body": "{name} accepted your invitation and can now post ads and answer requests for this building."
+      },
+      "caretakerDeclined": {
+        "title": "Your invitation was declined",
+        "body": "{name} declined your invitation to be a caretaker."
+      },
+      "caretakerRemoved": {
+        "title": "You are no longer a caretaker",
+        "body": "{name} removed you as a caretaker. That building's ads and requests are no longer shown to you."
+      },
+      "caretakerLeft": {
+        "title": "A caretaker left your building",
+        "body": "{name} is no longer a caretaker of this building. Their ads in it are now yours."
       }
     }
   },
@@ -1353,6 +1459,60 @@
     "linkHint": "If the button does not work, copy this link into your browser:",
     "footer": "You get this email because you have an account on House Manager.",
     "footerSettings": "To stop these emails, turn them off on your notifications page:",
-    "safety": "House Manager never asks for your password, OTP or PIN by email."
+    "safety": "House Manager never asks for your password, OTP or PIN by email.",
+    "buttonProperties": "Open My properties"
+  },
+  "Saved": {
+    "title": "Saved ads",
+    "subtitle": "Ads you saved, newest first. An ad that is rented or taken down stays here until you remove it.",
+    "empty": "No saved ads yet. Tap the heart on an ad to keep it here.",
+    "searchCta": "Search ads",
+    "save": "Save",
+    "saved": "Saved",
+    "saveAria": "Save this ad",
+    "unsaveAria": "Remove from saved ads",
+    "remove": "Remove",
+    "statePaused": "Paused",
+    "stateRented": "Rented",
+    "stateClosed": "No longer available",
+    "closedTitle": "An ad you saved",
+    "closedBody": "This ad has ended or was taken down.",
+    "rentedBody": "This place has been rented.",
+    "savedOn": "Saved {date}",
+    "count": "{count, plural, =0 {No saved ads} one {# saved ad} other {# saved ads}}",
+    "loginToSave": "Log in to save ads"
+  },
+  "Team": {
+    "title": "Owner and caretakers",
+    "hintOwner": "Caretakers post ads for this building's units, answer requests and see tenants' details, just like you.",
+    "hintCaretaker": "You are a caretaker of this building. You post ads for its units and answer their requests.",
+    "you": "you",
+    "creator": "Added the building",
+    "inviteLabel": "Invite a caretaker by email",
+    "inviteHint": "Use the email they signed up with. If they have no account yet, ask them to sign up with this email; the invitation waits for them.",
+    "invite": "Invite",
+    "inviting": "Inviting...",
+    "invitedTitle": "Invitation saved",
+    "invitedBody": "If this email belongs to a member, they are told now. Otherwise they see it once they sign up with it.",
+    "waiting": "Invited, waiting for an answer",
+    "invitedOn": "Invited {date}",
+    "cancel": "Cancel invitation",
+    "cancelConfirm": "Cancel the invitation for {email}?",
+    "remove": "Remove",
+    "removeConfirm": "Remove {name} as a caretaker? Their ads in this building become yours, with your phone number on them.",
+    "leave": "Leave this building",
+    "leaveConfirm": "Stop being a caretaker of this building? Your ads in it pass to the owner.",
+    "leftTitle": "You left the building",
+    "member": "A member",
+    "invitesTitle": "Invitations for you",
+    "invitesHint": "Accept to help manage the building as a caretaker. You can leave it again at any time.",
+    "invitedBy": "{name} invited you as a caretaker.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "acceptedTitle": "You are now a caretaker",
+    "declinedTitle": "Invitation declined",
+    "dashboardCardTitle": "You are invited to manage a building",
+    "dashboardCardBody": "{count, plural, one {# invitation is waiting for your answer.} other {# invitations are waiting for your answer.}}",
+    "dashboardCardCta": "Open the invitations"
   }
 }

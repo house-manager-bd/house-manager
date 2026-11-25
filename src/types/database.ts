@@ -188,6 +188,12 @@ export type ListingRow = {
   search_text: string;
   /** When the ad was last sent in, to go live or to the review queue (F5). */
   submitted_at: string | null;
+  /** F10: set while the poster has paused a live ad (not in search, no new requests). */
+  paused_at: string | null;
+  /** F10: when the poster was told the ad expires in 3 days. */
+  expiry_reminded_at: string | null;
+  /** F10: the rented or expired ad this draft was re-listed from. */
+  relisted_from: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -540,7 +546,16 @@ export type NotificationType =
   | "ad_approved"
   | "ad_rejected"
   | "ad_hidden"
-  | "ad_restored";
+  | "ad_restored"
+  // F10
+  | "ad_expiring"
+  | "ad_expired"
+  | "request_expired"
+  | "caretaker_invited"
+  | "caretaker_joined"
+  | "caretaker_declined"
+  | "caretaker_removed"
+  | "caretaker_left";
 
 /** What the triggers copy into a notification at that moment (F9). Each type uses some of it. */
 export type NotificationData = {
@@ -552,8 +567,10 @@ export type NotificationData = {
   rent?: number;
   expires_at?: string;
   reason?: DeclineReason;
-  /** offer_expired: whose notification it is. */
+  /** offer_expired and request_expired (F10): whose notification it is. */
   side?: ThreadSide;
+  /** F10 caretaker notifications: the building (title holds its name). */
+  building_id?: string;
 };
 
 export type NotificationRow = {
@@ -578,6 +595,50 @@ export type NotificationEmailRow = {
   request_id: string | null;
   listing_id: string | null;
   created_at: string;
+};
+
+/** F10: one row of public.my_saved_listings(). Card columns are empty unless the ad is live or paused. */
+export type SavedListingState = "active" | "paused" | "rented" | "closed";
+type Nullable<T> = { [K in keyof T]: T[K] | null };
+export type SavedListingRow = Nullable<Omit<SearchListingRow, "total_count" | "id">> & {
+  listing_id: string;
+  saved_at: string;
+  state: SavedListingState;
+};
+
+/** F10: one row of public.building_team(): a manager, or (for owners) a waiting invitation. */
+export type BuildingTeamRow = {
+  kind: "member" | "invite";
+  user_id: string | null;
+  invite_id: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: ManagerRole;
+  email: string | null;
+  is_creator: boolean;
+  created_at: string;
+};
+
+/** F10: one row of public.my_building_invites(). */
+export type MyBuildingInviteRow = {
+  id: string;
+  building_id: string;
+  building_name: string;
+  area_id: number;
+  inviter_name: string;
+  inviter_avatar: string | null;
+  created_at: string;
+};
+
+/** F10: what admin_run_scheduled_jobs() did. */
+export type ScheduledJobsResult = {
+  offers_expired: number;
+  requests_expired: number;
+  ads_expired: number;
+  ads_reminded: number;
+  notifications_deleted: number;
+  emails_deleted: number;
+  email_delivery_requested: boolean;
 };
 
 export type Database = {
@@ -641,6 +702,17 @@ export type Database = {
       tenant_verifications: Table<TenantVerificationRow>;
       notifications: Table<NotificationRow>;
       notification_settings: Table<{ user_id: string; email_enabled: boolean; updated_at: string }>;
+      saved_listings: Table<{ user_id: string; listing_id: string; created_at: string }>;
+      building_invites: Table<{
+        id: string;
+        building_id: string;
+        email: string;
+        invited_by: string;
+        status: "pending" | "accepted" | "declined" | "cancelled";
+        invitee_id: string | null;
+        created_at: string;
+        responded_at: string | null;
+      }>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -725,9 +797,35 @@ export type Database = {
         Args: { p_secret: string; p_sent: string[]; p_failed: string[]; p_error?: string | null };
         Returns: undefined;
       };
+      /** F10 managing ads and properties. */
+      pause_listing: { Args: { p_listing_id: string }; Returns: undefined };
+      resume_listing: { Args: { p_listing_id: string }; Returns: undefined };
+      /** Returns the new expiry time. */
+      renew_listing: { Args: { p_listing_id: string }; Returns: string };
+      mark_listing_rented: { Args: { p_listing_id: string }; Returns: undefined };
+      mark_unit_vacant: { Args: { p_unit_id: string }; Returns: undefined };
+      /** Returns the new draft's id. */
+      relist_listing: { Args: { p_listing_id: string }; Returns: string };
+      /** Returns "active", or "pending_review" when a change needs an admin's check. */
+      edit_live_listing: {
+        Args: { p_listing_id: string; p_values: Json; p_contact?: Json | null };
+        Returns: ListingStatus;
+      };
+      invite_caretaker: { Args: { p_building_id: string; p_email: string }; Returns: string };
+      cancel_building_invite: { Args: { p_invite_id: string }; Returns: undefined };
+      /** Returns the building's id. */
+      respond_building_invite: { Args: { p_invite_id: string; p_accept: boolean }; Returns: string };
+      remove_building_manager: { Args: { p_building_id: string; p_user_id: string }; Returns: undefined };
+      building_team: { Args: { p_building_id: string }; Returns: BuildingTeamRow[] };
+      my_building_invites: { Args: Record<string, never>; Returns: MyBuildingInviteRow[] };
+      is_building_owner: { Args: { p_building_id: string }; Returns: boolean };
+      listing_has_requests: { Args: { p_listing_id: string }; Returns: boolean };
+      set_listing_saved: { Args: { p_listing_id: string; p_saved: boolean }; Returns: boolean };
+      my_saved_listings: { Args: Record<string, never>; Returns: SavedListingRow[] };
+      admin_run_scheduled_jobs: { Args: Record<string, never>; Returns: ScheduledJobsResult };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
-        Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string };
+        Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string | null };
         Returns: string;
       };
       remove_listing_photo: { Args: { p_photo_id: string }; Returns: string };

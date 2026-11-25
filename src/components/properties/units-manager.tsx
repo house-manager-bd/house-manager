@@ -1,11 +1,11 @@
 "use client";
 
-import { Megaphone, Pencil, Plus, Trash2 } from "lucide-react";
+import { DoorOpen, Megaphone, Pencil, Plus, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { startListing } from "@/lib/actions/listing";
-import { deleteUnit } from "@/lib/actions/property";
+import { deleteUnit, markUnitVacant } from "@/lib/actions/property";
 import type { ErrorKey } from "@/lib/actions/result";
 import type { MyBuilding } from "@/lib/data/properties";
 import { formatNumber } from "@/lib/format";
@@ -78,6 +78,18 @@ export function UnitsManager({
     });
   }
 
+  // F10: a unit rented outside the site (or marked rented) is free again.
+  function vacate(unitId: string, label: string) {
+    if (!window.confirm(t("markVacantConfirm", { label }))) return;
+    setError(null);
+    setNotice(null);
+    startTransition(async () => {
+      const result = await markUnitVacant(unitId);
+      if (!result.ok) return setError(result.error);
+      router.refresh();
+    });
+  }
+
   function remove(unitId: string, label: string) {
     if (!window.confirm(`${t("deleteUnit")}: ${label}?`)) return;
     setError(null);
@@ -110,6 +122,7 @@ export function UnitsManager({
                       <UnitStatusBadge unit={unit} />
                     </div>
                     <UnitSummary unit={unit} />
+                    {unit.hasTenancy && <span className="text-xs text-primary">{t("tenantOnSite")}</span>}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {draftIsMine ? (
@@ -120,6 +133,11 @@ export function UnitsManager({
                       <Button size="sm" onClick={() => postAd(unit.id)} disabled={pending}>
                         <Megaphone aria-hidden />
                         {t("postAdForUnit")}
+                      </Button>
+                    ) : !unit.openListing && unit.status === "occupied" && !unit.hasTenancy ? (
+                      <Button size="sm" variant="outline" onClick={() => vacate(unit.id, unit.label)} disabled={pending}>
+                        <DoorOpen aria-hidden />
+                        {t("markVacant")}
                       </Button>
                     ) : null}
                     <Button size="sm" variant="outline" onClick={() => setEditing(unit.id)} disabled={pending}>

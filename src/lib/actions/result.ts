@@ -142,6 +142,35 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "unitOccupied";
     case "already_tenant":
       return "alreadyTenant";
+    // F10 managing ads and properties
+    case "listing_paused":
+      return "listingPaused";
+    case "renew_too_early":
+      return "renewTooEarly";
+    case "renew_too_late":
+      return "renewTooLate";
+    case "unit_has_tenancy":
+      return "unitHasTenancy";
+    case "slots_below_offers":
+      return "slotsBelowOffers";
+    case "photo_minimum":
+      return "photoMinimum";
+    case "saved_limit":
+      return "savedLimit";
+    case "email_invalid":
+      return "emailInvalid";
+    case "invite_self":
+      return "inviteSelf";
+    case "already_manager":
+      return "alreadyManager";
+    case "invite_limit":
+      return "inviteLimit";
+    case "invite_invalid":
+      return "inviteInvalid";
+    case "cannot_remove_manager":
+      return "cannotRemoveManager";
+    case "invalid_values":
+      return "generic";
   }
   switch (error?.code) {
     case "23505":

@@ -46,7 +46,7 @@ const MENUS: Record<AppMode, Item[]> = {
     { key: "searchAds", icon: Search, href: "/ads" },
     { key: "myRequests", icon: Send, href: "/dashboard/requests" },
     { key: "messages", icon: MessagesSquare, href: "/dashboard/messages" },
-    { key: "savedAds", icon: Heart, href: null }, // F10
+    { key: "savedAds", icon: Heart, href: "/dashboard/saved" },
     { key: "profile", icon: UserRound, href: "/dashboard/profile" },
   ],
   host: [

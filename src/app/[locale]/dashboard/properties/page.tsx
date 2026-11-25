@@ -5,9 +5,11 @@ import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getMyBuildings } from "@/lib/data/properties";
+import { getMyBuildingInvites } from "@/lib/data/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InvitesPanel } from "@/components/properties/invites-panel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Properties");
@@ -23,7 +25,9 @@ export default async function PropertiesPage() {
     getLocationTree(),
   ]);
   if (!user) return null;
-  const buildings = await getMyBuildings(user.id);
+  const [buildings, invites] = await Promise.all([getMyBuildings(user.id), getMyBuildingInvites()]);
+  // F10: invitations to be a caretaker, with each building's area in this language.
+  const inviteAreas = Object.fromEntries(invites.map((i) => [i.area_id, areaLabel(tree, i.area_id, locale)]));
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,6 +43,8 @@ export default async function PropertiesPage() {
           </Link>
         </Button>
       </div>
+
+      <InvitesPanel invites={invites} areaLabels={inviteAreas} />
 
       {buildings.length === 0 ? (
         <Card className="items-center py-12 text-center">

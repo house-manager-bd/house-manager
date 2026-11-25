@@ -31,10 +31,13 @@ export function PhotosStep({
   listingId,
   userId,
   initialPhotos,
+  live = false,
 }: {
   listingId: string;
   userId: string;
   initialPhotos: ListingPhoto[];
+  /** F10: photos of a live ad change on the ad at once. */
+  live?: boolean;
 }) {
   const t = useTranslations("Photos");
   const router = useRouter();
@@ -158,7 +161,7 @@ export function PhotosStep({
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const exit = wantsExit(event);
-    if (exit) return router.push("/dashboard/ads?saved=1");
+    if (exit) return router.push(live ? "/dashboard/ads?edited=1" : "/dashboard/ads?saved=1");
     if (photos.length < MIN_PHOTOS) return setError("photosMin");
     router.push(`/post/${listingId}?step=7`);
   }
@@ -324,7 +327,7 @@ export function PhotosStep({
         </span>
       </Alert>
 
-      <StepActions backHref={`/post/${listingId}?step=5`} pending={busy} />
+      <StepActions backHref={`/post/${listingId}?step=5`} pending={busy} live={live} />
     </form>
   );
 }

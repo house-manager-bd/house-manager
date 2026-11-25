@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormError } from "@/components/auth/form-alert";
 import { FormField, fieldAria } from "@/components/auth/form-field";
-import { StepActions, wantsExit } from "./step-shell";
+import { StepActions, afterSaveHref, wantsExit } from "./step-shell";
 
 /** Which ad types make sense for this unit and this poster. */
 function allowedTypes(unitKind: UnitKind, postedAs: PostedAs): ListingType[] {
@@ -28,9 +28,12 @@ function allowedTypes(unitKind: UnitKind, postedAs: PostedAs): ListingType[] {
 export function AboutStep({
   listingId,
   defaults,
+  live = false,
 }: {
   listingId: string;
   defaults: AboutStepInput;
+  /** F10: editing a live ad; the type and the sublet permission stay as they are. */
+  live?: boolean;
 }) {
   const t = useTranslations("Wizard");
   const tEnum = useTranslations("Enums");
@@ -56,7 +59,7 @@ export function AboutStep({
     startTransition(async () => {
       const result = await saveAboutStep(listingId, values);
       if (!result.ok) return setServerError(result.error);
-      router.push(exit ? "/dashboard/ads?saved=1" : `/post/${listingId}?step=4`);
+      router.push(afterSaveHref(listingId, 4, exit, live, result.data.status));
     });
   });
 
@@ -64,24 +67,34 @@ export function AboutStep({
     <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
       <FormError error={serverError} />
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">{t("listingType")}</legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {types.map((type) => (
-            <label
-              key={type}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
-            >
-              <input type="radio" value={type} className="mt-0.5 size-4 accent-primary" {...form.register("listingType")} />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-medium">{tEnum(`listingType.${type}`)}</span>
-                <span className="text-xs text-muted-foreground">{tEnum(`listingTypeHint.${type}`)}</span>
-              </span>
-            </label>
-          ))}
+      {live ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-medium">{t("listingType")}</span>
+          <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <Badge variant="outline">{tEnum(`listingType.${defaults.listingType as ListingType}`)}</Badge>
+            <span className="text-xs text-muted-foreground">{t("typeFixed")}</span>
+          </div>
         </div>
-        {err("listingType") && <p className="text-sm text-destructive">{tErrors(err("listingType") as ErrorKey)}</p>}
-      </fieldset>
+      ) : (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-2 text-sm font-medium">{t("listingType")}</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {types.map((type) => (
+              <label
+                key={type}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
+              >
+                <input type="radio" value={type} className="mt-0.5 size-4 accent-primary" {...form.register("listingType")} />
+                <span className="flex flex-col gap-0.5">
+                  <span className="font-medium">{tEnum(`listingType.${type}`)}</span>
+                  <span className="text-xs text-muted-foreground">{tEnum(`listingTypeHint.${type}`)}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {err("listingType") && <p className="text-sm text-destructive">{tErrors(err("listingType") as ErrorKey)}</p>}
+        </fieldset>
+      )}
 
       <div className="flex flex-col gap-1">
         <span className="text-sm font-medium">{t("postedAs")}</span>
@@ -97,7 +110,7 @@ export function AboutStep({
         </FormField>
       )}
 
-      {postedAs === "tenant_sublet" && (
+      {postedAs === "tenant_sublet" && !live && (
         <div className="flex flex-col gap-2">
           <CheckboxField label={t("subletConsent")} hint={t("subletConsentHint")} {...form.register("subletConsent")} />
           {err("subletConsent") && <p className="text-sm text-destructive">{tErrors(err("subletConsent") as ErrorKey)}</p>}
@@ -121,7 +134,7 @@ export function AboutStep({
         <Input {...fieldAria("availableFrom", err("availableFrom"))} type="date" className="w-full sm:w-56" {...form.register("availableFrom")} />
       </FormField>
 
-      <StepActions backHref={null} pending={pending} />
+      <StepActions backHref={null} pending={pending} live={live} />
     </form>
   );
 }

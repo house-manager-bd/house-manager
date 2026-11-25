@@ -6,7 +6,8 @@ import { getAdminCounts, getRecentActions } from "@/lib/data/admin";
 import { formatDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RunJobsButton } from "@/components/admin/run-jobs-button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Admin");
@@ -96,6 +97,16 @@ export default async function AdminOverviewPage() {
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("jobsTitle")}</CardTitle>
+          <CardDescription>{t("jobsBody")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RunJobsButton />
         </CardContent>
       </Card>
     </div>

@@ -13,7 +13,11 @@ export type MyRole = ManagerRole | "tenant";
 
 export type MyBuilding = BuildingRow & {
   myRole: MyRole;
-  units: (UnitRow & { openListing: Pick<ListingRow, "id" | "status" | "posted_by"> | null })[];
+  units: (UnitRow & {
+    openListing: Pick<ListingRow, "id" | "status" | "posted_by"> | null;
+    /** F10: a tenancy made on the site is active on this unit. */
+    hasTenancy: boolean;
+  })[];
 };
 
 export type BuildingDetail = MyBuilding & {
@@ -51,13 +55,16 @@ export async function getMyBuildings(userId: string): Promise<MyBuilding[]> {
     .in("building_id", ids)
     .order("label");
   const unitIds = (units ?? []).map((u) => u.id);
-  const { data: listings } = unitIds.length
-    ? await supabase
-        .from("listings")
-        .select("id, status, posted_by, unit_id")
-        .in("unit_id", unitIds)
-        .in("status", [...OPEN_STATUSES])
-    : { data: [] };
+  const [{ data: listings }, { data: tenancies }] = unitIds.length
+    ? await Promise.all([
+        supabase
+          .from("listings")
+          .select("id, status, posted_by, unit_id")
+          .in("unit_id", unitIds)
+          .in("status", [...OPEN_STATUSES]),
+        supabase.from("tenancies").select("unit_id").in("unit_id", unitIds).eq("status", "active"),
+      ])
+    : [{ data: [] }, { data: [] }];
 
   return buildings.map((b) => ({
     ...b,
@@ -69,6 +76,7 @@ export async function getMyBuildings(userId: string): Promise<MyBuilding[]> {
       .map((u) => ({
         ...u,
         openListing: listings?.find((l) => l.unit_id === u.id) ?? null,
+        hasTenancy: (tenancies ?? []).some((t) => t.unit_id === u.id),
       })),
   }));
 }

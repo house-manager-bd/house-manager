@@ -55,7 +55,13 @@ export function renderNotificationEmail(row: NotificationEmailRow, siteUrl: stri
   const url = `${siteUrl}/${locale}${target.href}`;
   const settingsUrl = `${siteUrl}/${locale}/dashboard/notifications#email`;
   const button =
-    target.kind === "request" ? tEmail("buttonRequest") : target.kind === "ad" ? tEmail("buttonAd") : tEmail("buttonMyAds");
+    target.kind === "request"
+      ? tEmail("buttonRequest")
+      : target.kind === "ad"
+        ? tEmail("buttonAd")
+        : target.kind === "properties"
+          ? tEmail("buttonProperties")
+          : tEmail("buttonMyAds");
 
   const plain = [
     greeting,

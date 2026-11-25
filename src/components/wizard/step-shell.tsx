@@ -11,13 +11,31 @@ export function wantsExit(event?: React.BaseSyntheticEvent) {
   return submitter?.getAttribute("value") === "exit";
 }
 
-/** Bottom buttons shared by steps 3 to 5. */
+/**
+ * Where a step goes after saving. A live ad (F10) that a change sent back to
+ * review leaves the wizard for My ads, which says why.
+ */
+export function afterSaveHref(
+  listingId: string,
+  nextStep: number,
+  exit: boolean,
+  live: boolean,
+  status?: string,
+) {
+  if (status === "pending_review") return "/dashboard/ads?review=1";
+  if (exit) return live ? "/dashboard/ads?edited=1" : "/dashboard/ads?saved=1";
+  return `/post/${listingId}?step=${nextStep}`;
+}
+
+/** Bottom buttons shared by steps 3 to 6. On a live ad (F10) nothing is a draft. */
 export function StepActions({
   backHref,
   pending,
+  live = false,
 }: {
   backHref: string | null;
   pending: boolean;
+  live?: boolean;
 }) {
   const t = useTranslations("Wizard");
   return (
@@ -31,7 +49,7 @@ export function StepActions({
       )}
       <div className="flex flex-col-reverse gap-3 sm:flex-row">
         <Button type="submit" name="intent" value="exit" variant="outline" disabled={pending}>
-          {t("saveDraftExit")}
+          {live ? t("saveExit") : t("saveDraftExit")}
         </Button>
         <Button type="submit" size="lg" disabled={pending}>
           {t("saveAndNext")}

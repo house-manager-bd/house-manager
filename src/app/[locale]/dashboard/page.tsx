@@ -4,7 +4,9 @@ import {
   BadgeCheck,
   Ban,
   Building2,
+  CalendarClock,
   Handshake,
+  Heart,
   Inbox,
   Megaphone,
   MessagesSquare,
@@ -13,6 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserRoundPen,
+  UserRoundPlus,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
@@ -22,6 +25,9 @@ import { getMyListings } from "@/lib/data/listings";
 import { getUnreadMessageCount } from "@/lib/data/messages";
 import { getMyBuildings } from "@/lib/data/properties";
 import { getInbox, getMyRequests } from "@/lib/data/requests";
+import { getSavedListings } from "@/lib/data/saved";
+import { getMyBuildingInvites } from "@/lib/data/team";
+import { manageState } from "@/lib/listing-manage";
 import { OPEN_STATUSES } from "@/lib/validation/request";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -52,10 +58,16 @@ export default async function DashboardPage() {
   const newRequests = inbox.reduce((sum, row) => sum + row.pending_count, 0);
   // F8: offers the landlord side made that wait for the member's answer.
   const offersWaiting = inbox.reduce((sum, row) => sum + row.offered_count, 0);
-  const [myRequests, unreadMessages] = await Promise.all([
+  const [myRequests, unreadMessages, invites, saved, tTeam] = await Promise.all([
     mode === "seek" ? getMyRequests() : Promise.resolve([]),
     getUnreadMessageCount(),
+    // F10: caretaker invitations (both modes) and saved ads (seekers).
+    getMyBuildingInvites(),
+    mode === "seek" ? getSavedListings() : Promise.resolve([]),
+    getTranslations("Team"),
   ]);
+  // F10: live ads in their last 7 days (the reminder comes 3 days before).
+  const expiringAds = ads.filter((a) => manageState(a).expiringSoon).length;
   const openRequests = myRequests.filter((r) => (OPEN_STATUSES as readonly string[]).includes(r.status)).length;
   const shortlistedFor = myRequests.filter((r) => r.status === "shortlisted").length;
   // F8: offers to answer within 48 hours, and places the member now rents.
@@ -127,6 +139,26 @@ export default async function DashboardPage() {
         </Card>
       )}
 
+      {invites.length > 0 && (
+        <Card className="border-accent/50 bg-accent/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserRoundPlus className="size-5 text-accent" aria-hidden />
+              {tTeam("dashboardCardTitle")}
+            </CardTitle>
+            <CardDescription>{tTeam("dashboardCardBody", { count: invites.length })}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/dashboard/properties#invites">
+                {tTeam("dashboardCardCta")}
+                <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {profileIncomplete && (
         <Card className="border-accent/50 bg-accent/5">
           <CardHeader>
@@ -167,6 +199,12 @@ export default async function DashboardPage() {
                   <Megaphone className="size-4 text-muted-foreground" aria-hidden />
                   {t("myAdsCount", { count: ads.length })}
                 </Link>
+                {expiringAds > 0 && (
+                  <Link href="/dashboard/ads" className="flex items-center gap-2 font-semibold text-amber-800 hover:underline">
+                    <CalendarClock className="size-4 text-muted-foreground" aria-hidden />
+                    {t("expiringCount", { count: expiringAds })}
+                  </Link>
+                )}
                 <Link
                   href="/dashboard/inbox"
                   className={`flex items-center gap-2 hover:underline ${newRequests > 0 ? "font-semibold text-amber-800" : ""}`}
@@ -220,6 +258,10 @@ export default async function DashboardPage() {
                 {shortlistedFor > 0 && (
                   <p className="font-medium text-primary">{t("shortlistedForCount", { count: shortlistedFor })}</p>
                 )}
+                <Link href="/dashboard/saved" className="flex items-center gap-2 hover:underline">
+                  <Heart className="size-4 text-muted-foreground" aria-hidden />
+                  {t("savedCount", { count: saved.length })}
+                </Link>
                 {unreadLink}
               </div>
               <Button asChild className="w-fit">
