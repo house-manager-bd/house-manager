@@ -371,6 +371,8 @@ The job's notifications also need emails, and the database cannot send email. So
 
 Until this is set up, everything still works: offers, ads and requests are shown with the right status on every page, and admins can run the job by hand (**Admin**, **Overview**, **Scheduled jobs**, **Run now**). Only the automatic runs are missing.
 
+Turn the schedule on (the `cron.schedule` line in step 4) only when nobody is testing the job on dev with **Run now** (F10.md sections 7 and 8): a scheduled run would do that work first, and **Run now** would show 0.
+
 1. **Cron secret.** On any laptop with Node:
    ```
    node -e "console.log('CRON_SECRET='+require('crypto').randomBytes(32).toString('base64url'))"
@@ -388,6 +390,8 @@ Until this is set up, everything still works: offers, ads and requests are shown
    ```
    Vault keeps the two values encrypted. The site address is production, because production runs main; the job's emails link there. Running `cron.schedule` again with the same name only replaces the job.
 
+Done for `house-manager-dev` on 2026-11-25 (`CRON_SECRET` on Vercel Production and Preview, Cron every 10 minutes).
+
 **Check** (after 10 minutes):
 ```sql
 select status, return_message, start_time
@@ -395,7 +399,7 @@ from cron.job_run_details
 where jobid = (select jobid from cron.job where jobname = 'house-manager-jobs')
 order by start_time desc limit 5;
 ```
-- `succeeded` with a JSON message such as `{"ads_expired": 0, "offers_expired": 0, ...}`: the job runs.
+- `succeeded`, with `1 row` as the message: the job runs. Cron keeps only that, not the job's numbers; an admin's **Run now** shows the numbers of its own run.
 - To see the calls to the site (only made when emails were waiting): `select status_code, content, created from net._http_response order by created desc limit 5;`. `200`: sent. `401`: the cron secret on Vercel and in Vault differ. `404`: production does not have F10 yet (normal before the F10 pull request is merged).
 
 Good to know:
