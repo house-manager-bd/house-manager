@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BadgeCheck, CircleAlert, Handshake, Inbox, MessagesSquare, Star } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarDays, CircleAlert, Handshake, Inbox, MessagesSquare, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getListingThreadCounts } from "@/lib/data/messages";
 import { getListingInbox, type InboxRequest } from "@/lib/data/requests";
-import { formatDate, formatDateTime, formatNumber, formatTaka } from "@/lib/format";
+import { getBookedViewings, getUpcomingSlotCounts } from "@/lib/data/viewings";
+import { formatDate, formatDateTime, formatNumber, formatTaka, formatTime, formatVisitDay } from "@/lib/format";
 import { cn, nameInitials } from "@/lib/utils";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -45,20 +46,25 @@ export default async function ListingRequestsPage({
   if (!UUID.test(listingId)) notFound();
   const tab: Tab = TABS.includes(query.tab as Tab) ? (query.tab as Tab) : "new";
 
-  const [t, tEnum, tOffer, locale, user, inbox, threadCounts] = await Promise.all([
+  const [t, tEnum, tOffer, tView, locale, user, inbox, threadCounts, slotCounts] = await Promise.all([
     getTranslations("Inbox"),
     getTranslations("Enums"),
     getTranslations("Offer"),
+    getTranslations("Viewing"),
     getLocale(),
     getCurrentUser(),
     getListingInbox(listingId),
     getListingThreadCounts(listingId),
+    getUpcomingSlotCounts([listingId]),
   ]);
   if (!user) return null;
   // Not the poster or a manager of the building (admins included).
   if (!inbox) notFound();
 
   const { listing, requests } = inbox;
+  // F11: each member's coming visit, and the ad's times.
+  const visits = await getBookedViewings(requests.map((r) => r.id));
+  const times = slotCounts.get(listing.id) ?? { total: 0, booked: 0 };
   const live = listing.status === "active";
   const shown = requests.filter((r) => tabOf(r) === tab);
   const count = (key: Tab) => requests.filter((r) => tabOf(r) === key).length;
@@ -108,6 +114,17 @@ export default async function ListingRequestsPage({
             {listing.listing_type === "mess_seat" && <>{tOffer("seatsLeft", { count: listing.open_slots })} · </>}
             {tOffer("offersWaiting", { count: liveOffers })}
           </p>
+        )}
+        {(live || times.total > 0) && (
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/dashboard/ads/${listing.id}/viewings`}>
+                <CalendarDays aria-hidden />
+                {tView("pageTitle")}
+              </Link>
+            </Button>
+            <span className="text-sm text-muted-foreground">{tView("timesSummary", { count: times.total, booked: times.booked })}</span>
+          </div>
         )}
       </div>
 
@@ -225,6 +242,15 @@ export default async function ListingRequestsPage({
                       </div>
                     )}
 
+                    {visits.get(r.id) && (
+                      <p className="flex items-start gap-1.5 rounded-md bg-primary/5 px-3 py-2 text-sm text-primary">
+                        <CalendarCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+                        {tView("visitLine", {
+                          day: formatVisitDay(visits.get(r.id)!.starts_at, locale),
+                          time: formatTime(visits.get(r.id)!.starts_at, locale),
+                        })}
+                      </p>
+                    )}
                     {r.status === "offered" && r.offer_expires_at && r.offer_rent !== null && (
                       <p className="flex items-start gap-1.5 rounded-md bg-accent/10 px-3 py-2 text-sm text-amber-800">
                         <Handshake className="mt-0.5 size-4 shrink-0" aria-hidden />

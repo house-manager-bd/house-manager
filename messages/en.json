@@ -257,7 +257,17 @@
     "inviteLimit": "Too many invitations. Cancel some waiting invitations, or try again tomorrow.",
     "inviteInvalid": "This invitation is no longer valid, because the person who sent it no longer owns the building.",
     "cannotRemoveManager": "The owner and the person who added the building cannot be removed.",
-    "draftHasRequests": "This draft has requests from members, so it cannot be deleted. Send it in again instead."
+    "draftHasRequests": "This draft has requests from members, so it cannot be deleted. Send it in again instead.",
+    "viewingDateInvalid": "Choose a day from today up to 14 days ahead.",
+    "viewingTimeInvalid": "Choose a start before the end, between 7 am and 10 pm, with room for at least one visit.",
+    "viewingTooMany": "You can add at most 12 visit times at once.",
+    "viewingTooSoon": "A visit time must start at least 1 hour from now.",
+    "viewingOverlap": "These times overlap times you already added for this ad.",
+    "viewingLimit": "An ad can have at most 40 visit times coming up. Remove some first.",
+    "viewingStarted": "This visit has already started.",
+    "viewingTaken": "Someone else just booked this time. Pick another one.",
+    "viewingGone": "This visit time has changed meanwhile. Reload the page.",
+    "viewingChangeLimit": "You have changed your visit too often today. Try again tomorrow, or write to the landlord."
   },
   "Footer": {
     "tagline": "Broker-free rentals for Bangladesh.",
@@ -1049,11 +1059,11 @@
     "nextPage": "Next",
     "pageOf": "Page {page, number} of {total, number}",
     "jobsTitle": "Scheduled jobs",
-    "jobsBody": "Supabase Cron runs these every 10 minutes: offers past 48 hours, requests with no step or message for 14 days, expiry reminders, ads past 30 days, and notifications read more than 90 days ago. Run them now to test.",
+    "jobsBody": "Supabase Cron runs these every 10 minutes: offers past 48 hours, requests with no step or message for 14 days, expiry reminders, ads past 30 days, visit reminders, and notifications read more than 90 days ago. Run them now to test.",
     "jobsRun": "Run now",
     "jobsRunning": "Running...",
     "jobsDone": "Done",
-    "jobsResult": "{offers, plural, one {# offer expired} other {# offers expired}}, {requests, plural, one {# request closed} other {# requests closed}}, {expired, plural, one {# ad expired} other {# ads expired}}, {reminded, plural, one {# reminder} other {# reminders}}, {deleted, plural, one {# old notification deleted} other {# old notifications deleted}}."
+    "jobsResult": "{offers, plural, one {# offer expired} other {# offers expired}}, {requests, plural, one {# request closed} other {# requests closed}}, {expired, plural, one {# ad expired} other {# ads expired}}, {reminded, plural, one {# reminder} other {# reminders}}, {visits, plural, one {# visit reminder} other {# visit reminders}}, {deleted, plural, one {# old notification deleted} other {# old notifications deleted}}."
   },
   "Requests": {
     "title": "My requests",
@@ -1133,7 +1143,9 @@
     "offeredNote": "The landlord offered you this place. Answer by {date}.",
     "seeOffer": "See the offer",
     "confirmedNote": "You rent a place through this ad.",
-    "seeTenancy": "Tenancy details"
+    "seeTenancy": "Tenancy details",
+    "bookVisit": "Book a visit",
+    "ownAdVisits": "Visit times"
   },
   "Inbox": {
     "title": "Requests inbox",
@@ -1341,7 +1353,7 @@
   },
   "Notifications": {
     "title": "Notifications",
-    "subtitle": "Requests, offers, your ads and your buildings, newest first.",
+    "subtitle": "Requests, offers, visits, your ads and your buildings, newest first.",
     "bellLabel": "{count, plural, =0 {Notifications} one {Notifications, # unread} other {Notifications, # unread}}",
     "markAllRead": "Mark all as read",
     "marking": "Marking...",
@@ -1447,6 +1459,34 @@
       "caretakerLeft": {
         "title": "A caretaker left your building",
         "body": "{name} is no longer a caretaker of this building. Their ads in it are now yours."
+      },
+      "viewingBooked": {
+        "title": "A visit was booked",
+        "body": "{name} will come to see the place on {day}, {from} to {to}."
+      },
+      "viewingMoved": {
+        "title": "A visit was moved",
+        "body": "{name} moved the visit to {day}, {from} to {to}."
+      },
+      "viewingCancelledByMember": {
+        "title": "A visit was cancelled",
+        "body": "{name} cancelled the visit on {day} at {from}. The time is free again."
+      },
+      "viewingCancelledByLandlord": {
+        "title": "Your visit was cancelled",
+        "body": "The landlord removed the time on {day} at {from}. Pick another time on the request's page."
+      },
+      "viewingReminderSeeker": {
+        "title": "Your visit is coming up",
+        "body": "You visit the place on {day} at {from}. The address is on the request's page."
+      },
+      "viewingReminderLandlord": {
+        "title": "A visit is coming up",
+        "body": "{name} comes to see the place on {day} at {from}."
+      },
+      "viewingSlotsAdded": {
+        "title": "You can book a visit",
+        "body": "The landlord added times to see the place. Pick the one that suits you."
       }
     }
   },
@@ -1514,5 +1554,80 @@
     "dashboardCardTitle": "You are invited to manage a building",
     "dashboardCardBody": "{count, plural, one {# invitation is waiting for your answer.} other {# invitations are waiting for your answer.}}",
     "dashboardCardCta": "Open the invitations"
+  },
+  "Viewing": {
+    "timeRange": "{from} to {to}",
+    "member": "A member",
+    "today": "Today, {day}",
+    "tomorrow": "Tomorrow, {day}",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "yourVisit": "Your visit",
+    "visitBooked": "Visit booked",
+    "bookTitle": "Book a visit",
+    "visitTitle": "Visit",
+    "address": "Address",
+    "openMap": "Open in Google Maps",
+    "bookBody": "Pick a time to come and see the place. You can change or cancel it later. Booking closes 1 hour before each visit.",
+    "noTimes": "There are no free visit times right now. You can ask {name} about a time in a message below. You will be told when new times are added.",
+    "visitSeekerHint": "Meet {name} there. See the place and meet the owner before you pay anything.",
+    "visitLandlordHint": "{name} will come to see the place.",
+    "notBookedYet": "{name} has not booked a visit yet.",
+    "freeTimes": "{count, plural, one {# free time for members to book.} other {# free times for members to book.}}",
+    "noFreeTimes": "There are no free times. Add some so that {name} can book one.",
+    "lastVisit": "Last visit: {day} at {time}.",
+    "notLiveSeeker": "This ad is not live right now, so visits cannot be booked.",
+    "notLiveLandlord": "This ad is not live right now, so members cannot book visits.",
+    "notLiveWithVisit": "This ad is not live right now. Check with the landlord in a message before you go.",
+    "change": "Change the time",
+    "cancel": "Cancel the visit",
+    "cancelling": "Cancelling...",
+    "cancelConfirm": "Cancel this visit? The landlord is told, and you can book another free time.",
+    "chosen": "{day}, {time}",
+    "book": "Book this time",
+    "moveHere": "Move my visit to this time",
+    "booking": "Booking...",
+    "doneBooked": "Visit booked. The landlord has been told.",
+    "doneMoved": "Visit moved. The landlord has been told.",
+    "manageTimes": "Visit times",
+    "addTimes": "Add visit times",
+    "pageTitle": "Visit times",
+    "backToRequests": "Requests for this ad",
+    "pageIntro": "Add times when members can come to see the place. Members you shortlisted, or offered the place to, book a free time on their request's page. Each time is for one visit.",
+    "pageCounts": "{upcoming, plural, one {# time coming up} other {# times coming up}}, {booked, plural, one {# booked} other {# booked}}",
+    "limitNote": "up to {max, number} per ad",
+    "pageNotLive": "This ad is not live ({status}), so you cannot add times and members cannot book. Times already booked stay as they are.",
+    "addTitle": "Add visit times",
+    "addBody": "Choose a day, the hours you are free and how long one visit takes. Visits can be between 7 am and 10 pm, up to 14 days ahead.",
+    "day": "Day",
+    "from": "From",
+    "to": "Until",
+    "length": "Each visit takes",
+    "preview": "{count, plural, one {This adds # visit time: {times}.} other {This adds # visit times: {times}.}}",
+    "previewNone": "No visit fits between these times. Choose a later end.",
+    "previewTooMany": "That would be {count} times. You can add at most {max, number} at once.",
+    "previewTooSoon": "The first time must start at least 1 hour from now.",
+    "add": "Add times",
+    "adding": "Adding...",
+    "doneAdded": "{count, plural, one {# visit time added.} other {# visit times added.}} Shortlisted members without a visit have been told.",
+    "comingTitle": "Coming up",
+    "empty": "No visit times coming up.",
+    "emptyLive": "No visit times yet. Add some above.",
+    "dayCounts": "{count, plural, one {# time} other {# times}}, {booked, plural, one {# booked} other {# booked}}",
+    "bookedBy": "Booked by {name}",
+    "booked": "Booked",
+    "free": "Free",
+    "now": "Now",
+    "remove": "Remove",
+    "removing": "Removing...",
+    "removeBookedConfirm": "{name} has booked this time. Remove it anyway? They are told and can pick another time.",
+    "pastTitle": "Recent visits ({count})",
+    "pastRow": "{day} at {time}: {name}",
+    "timesSummary": "{count, plural, =0 {No times coming up} one {# time coming up} other {# times coming up}}, {booked, plural, one {# booked} other {# booked}}",
+    "visitLine": "Visit: {day} at {time}",
+    "yourVisitLine": "Your visit: {day} at {time}",
+    "bookedBadge": "{count, plural, one {# booked} other {# booked}}",
+    "dashboardTitle": "Coming visits",
+    "dashboardSeeker": "Your visit",
+    "dashboardLandlord": "{name} comes to see it"
   }
 }

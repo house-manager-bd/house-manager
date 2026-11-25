@@ -4,6 +4,7 @@ import { after } from "next/server";
 import nodemailer from "nodemailer";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 import type { Database } from "@/types/database";
+import { isKnownNotificationType } from "@/lib/notifications";
 import { getEmailConfig, siteUrlForEmails } from "./config";
 import { renderNotificationEmail } from "./notification-email";
 
@@ -80,6 +81,14 @@ export async function deliverNotificationEmails(): Promise<DeliveryResult> {
       for (const row of rows) {
         if (stop) {
           failedIds.push(row.notification_id);
+          continue;
+        }
+        // F11: a type from a newer feature (another deployment on the same
+        // database). Marked failed, so a deployment that knows it sends it
+        // on a later run (the outbox tries each email 3 times).
+        if (!isKnownNotificationType(row.type)) {
+          failedIds.push(row.notification_id);
+          lastError = `unknown_type ${row.type}`.slice(0, 300);
           continue;
         }
         try {

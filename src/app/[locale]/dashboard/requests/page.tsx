@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { BadgeCheck, CircleAlert, Handshake, ImageOff, MessagesSquare, Search, Send, Star } from "lucide-react";
+import { BadgeCheck, CalendarCheck, CircleAlert, Handshake, ImageOff, MessagesSquare, Search, Send, Star } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getMyRequests } from "@/lib/data/requests";
-import { formatDate, formatDateTime, formatNumber, formatTaka } from "@/lib/format";
+import { getBookedViewings } from "@/lib/data/viewings";
+import { formatDate, formatDateTime, formatNumber, formatTaka, formatTime, formatVisitDay } from "@/lib/format";
 import { photoUrl } from "@/lib/photos";
 import { OPEN_REQUEST_LIMIT, OPEN_STATUSES } from "@/lib/validation/request";
-import type { MyRequestRow } from "@/types/database";
+import type { MyRequestRow, ViewingTime } from "@/types/database";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/[loca
     getMyRequests(),
   ]);
   if (!user) return null;
+  // F11: the coming visit of each request.
+  const visits = await getBookedViewings(requests.map((r) => r.id));
 
   // Offers first: they wait for an answer, and run out after 48 hours.
   const open = requests.filter(isOpen).sort((a, b) => Number(b.status === "offered") - Number(a.status === "offered"));
@@ -106,7 +109,7 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/[loca
         <ul className="flex flex-col gap-3">
           {shown.map((r) => (
             <li key={r.id}>
-              <RequestCard request={r} area={areaLabel(tree, r.area_id, locale)} locale={locale} />
+              <RequestCard request={r} area={areaLabel(tree, r.area_id, locale)} locale={locale} visit={visits.get(r.id) ?? null} />
             </li>
           ))}
         </ul>
@@ -115,8 +118,22 @@ export default async function MyRequestsPage({ searchParams }: PageProps<"/[loca
   );
 }
 
-async function RequestCard({ request: r, area, locale }: { request: MyRequestRow; area: string; locale: string }) {
-  const [t, tEnum] = await Promise.all([getTranslations("Requests"), getTranslations("Enums")]);
+async function RequestCard({
+  request: r,
+  area,
+  locale,
+  visit,
+}: {
+  request: MyRequestRow;
+  area: string;
+  locale: string;
+  visit: ViewingTime | null;
+}) {
+  const [t, tEnum, tView] = await Promise.all([
+    getTranslations("Requests"),
+    getTranslations("Enums"),
+    getTranslations("Viewing"),
+  ]);
   const live = r.listing_status === "active";
   const title = r.listing_title ?? t("untitledAd");
 
@@ -177,6 +194,15 @@ async function RequestCard({ request: r, area, locale }: { request: MyRequestRow
 
       <CardContent className="flex flex-col gap-4">
         <StatusNote request={r} live={live} locale={locale} t={t} tEnum={tEnum} />
+        {visit && (
+          <Link
+            href={`/dashboard/requests/${r.id}#visit`}
+            className="flex items-start gap-1.5 rounded-md bg-primary/5 px-3 py-2 text-sm font-medium text-primary hover:underline"
+          >
+            <CalendarCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
+            {tView("yourVisitLine", { day: formatVisitDay(visit.starts_at, locale), time: formatTime(visit.starts_at, locale) })}
+          </Link>
+        )}
 
         <details className="group rounded-lg border bg-muted/30 px-3 py-2">
           <summary className="cursor-pointer text-sm font-medium">{t("yourDetails")}</summary>

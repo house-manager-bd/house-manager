@@ -462,6 +462,15 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
                       {tRequest("ownAdNew", { count: newRequests })}
                     </span>
                   </Link>
+                  {l.status === "active" && (
+                    <Link
+                      href={`/dashboard/ads/${l.id}/viewings`}
+                      className="flex items-center gap-2 rounded-md border px-3 py-2.5 text-sm font-medium hover:bg-muted"
+                    >
+                      <CalendarDays className="size-4 text-primary" aria-hidden />
+                      {tRequest("ownAdVisits")}
+                    </Link>
+                  )}
                   <RevealPhone
                     listingId={l.id}
                     initial={{ phone: ownContact?.contact_phone ?? null, whatsapp: ownContact?.whatsapp ?? null }}
@@ -643,6 +652,15 @@ function RequestPanel({
             <Link href={`/dashboard/requests/${open.id}#offer`}>
               <Handshake aria-hidden />
               {t("seeOffer")}
+            </Link>
+          </Button>
+        )}
+        {/* F11: a shortlisted member (or one with an offer) books a visit on the request's page. */}
+        {(open.status === "shortlisted" || offered) && (
+          <Button asChild className="w-full" variant="outline">
+            <Link href={`/dashboard/requests/${open.id}#visit`}>
+              <CalendarDays aria-hidden />
+              {t("bookVisit")}
             </Link>
           </Button>
         )}
