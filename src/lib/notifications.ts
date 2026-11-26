@@ -1,5 +1,5 @@
 import type { createTranslator } from "next-intl";
-import { formatDateTime, formatTaka } from "@/lib/format";
+import { formatDateTime, formatTaka, formatTime, formatVisitDay } from "@/lib/format";
 import type { NotificationData, NotificationRow, NotificationType } from "@/types/database";
 import type messages from "../../messages/en.json";
 
@@ -31,6 +31,43 @@ export function parseCursor(value: unknown): NotificationCursor | null {
   return CURSOR_AT.test(at) && UUID.test(id) ? { at, id } : null;
 }
 
+/** Every type this version of the app can describe (TypeScript keeps the list complete). */
+const KNOWN_TYPES: Record<NotificationType, true> = {
+  request_new: true,
+  request_shortlisted: true,
+  request_declined: true,
+  offer_received: true,
+  offer_taken_back: true,
+  offer_accepted: true,
+  offer_turned_down: true,
+  offer_expired: true,
+  ad_approved: true,
+  ad_rejected: true,
+  ad_hidden: true,
+  ad_restored: true,
+  ad_expiring: true,
+  ad_expired: true,
+  request_expired: true,
+  caretaker_invited: true,
+  caretaker_joined: true,
+  caretaker_declined: true,
+  caretaker_removed: true,
+  caretaker_left: true,
+  viewing_booked: true,
+  viewing_cancelled: true,
+  viewing_reminder: true,
+  viewing_slots_added: true,
+};
+
+/**
+ * Whether this version of the app knows the type. Production and previews
+ * share one database, so a deployment may claim an email of a type that a
+ * newer feature added; it leaves that one for a newer deployment.
+ */
+export function isKnownNotificationType(type: string): type is NotificationType {
+  return Object.prototype.hasOwnProperty.call(KNOWN_TYPES, type);
+}
+
 /** Keys under Notifications.types in messages/*.json. offer_expired has one text per side. */
 export type NotificationTextKey =
   | "requestNew"
@@ -54,9 +91,21 @@ export type NotificationTextKey =
   | "caretakerJoined"
   | "caretakerDeclined"
   | "caretakerRemoved"
-  | "caretakerLeft";
+  | "caretakerLeft"
+  | "viewingBooked"
+  | "viewingMoved"
+  | "viewingCancelledByMember"
+  | "viewingCancelledByLandlord"
+  | "viewingReminderSeeker"
+  | "viewingReminderLandlord"
+  | "viewingSlotsAdded";
 
-const TEXT_KEYS: Record<Exclude<NotificationType, "offer_expired" | "request_expired">, NotificationTextKey> = {
+type OneTextType = Exclude<
+  NotificationType,
+  "offer_expired" | "request_expired" | "viewing_booked" | "viewing_cancelled" | "viewing_reminder"
+>;
+
+const TEXT_KEYS: Record<OneTextType, NotificationTextKey> = {
   request_new: "requestNew",
   request_shortlisted: "requestShortlisted",
   request_declined: "requestDeclined",
@@ -75,11 +124,16 @@ const TEXT_KEYS: Record<Exclude<NotificationType, "offer_expired" | "request_exp
   caretaker_declined: "caretakerDeclined",
   caretaker_removed: "caretakerRemoved",
   caretaker_left: "caretakerLeft",
+  viewing_slots_added: "viewingSlotsAdded",
 };
 
 export function notificationTextKey(type: NotificationType, data: NotificationData): NotificationTextKey {
   if (type === "offer_expired") return data.side === "landlord" ? "offerExpiredLandlord" : "offerExpiredSeeker";
   if (type === "request_expired") return data.side === "landlord" ? "requestExpiredLandlord" : "requestExpiredSeeker";
+  // F11: one text per case.
+  if (type === "viewing_booked") return data.changed ? "viewingMoved" : "viewingBooked";
+  if (type === "viewing_cancelled") return data.by === "landlord" ? "viewingCancelledByLandlord" : "viewingCancelledByMember";
+  if (type === "viewing_reminder") return data.side === "landlord" ? "viewingReminderLandlord" : "viewingReminderSeeker";
   return TEXT_KEYS[type];
 }
 
@@ -128,6 +182,10 @@ export function notificationValues(
     rent: typeof data.rent === "number" ? formatTaka(data.rent, locale) : "",
     deadline: data.expires_at ? formatDateTime(data.expires_at, locale) : "",
     reason: labels.reason ?? "",
+    // F11: the visit's Dhaka day and times.
+    day: data.starts_at ? formatVisitDay(data.starts_at, locale) : "",
+    from: data.starts_at ? formatTime(data.starts_at, locale) : "",
+    to: data.ends_at ? formatTime(data.ends_at, locale) : "",
   };
 }
 

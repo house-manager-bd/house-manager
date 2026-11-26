@@ -555,7 +555,12 @@ export type NotificationType =
   | "caretaker_joined"
   | "caretaker_declined"
   | "caretaker_removed"
-  | "caretaker_left";
+  | "caretaker_left"
+  // F11
+  | "viewing_booked"
+  | "viewing_cancelled"
+  | "viewing_reminder"
+  | "viewing_slots_added";
 
 /** What the triggers copy into a notification at that moment (F9). Each type uses some of it. */
 export type NotificationData = {
@@ -571,6 +576,13 @@ export type NotificationData = {
   side?: ThreadSide;
   /** F10 caretaker notifications: the building (title holds its name). */
   building_id?: string;
+  /** F11 viewing notifications: the visit's time. */
+  starts_at?: string;
+  ends_at?: string;
+  /** viewing_booked: the member moved an earlier visit to this time. */
+  changed?: boolean;
+  /** viewing_cancelled: who cancelled. */
+  by?: "member" | "landlord";
 };
 
 export type NotificationRow = {
@@ -636,9 +648,68 @@ export type ScheduledJobsResult = {
   requests_expired: number;
   ads_expired: number;
   ads_reminded: number;
+  /** F11: visits reminded, and old visit times deleted. */
+  viewings_reminded: number;
   notifications_deleted: number;
   emails_deleted: number;
+  viewing_slots_deleted: number;
   email_delivery_requested: boolean;
+};
+
+/** F11: one visit time of an ad (public.viewing_slots). */
+export type ViewingSlotRow = {
+  id: string;
+  listing_id: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string | null;
+  booked_request_id: string | null;
+  booked_at: string | null;
+  reminded_at: string | null;
+  created_at: string;
+};
+
+/** F11: a visit time as request_viewings() returns it. */
+export type ViewingTime = { id: string; starts_at: string; ends_at: string };
+
+/** F11: why a member cannot book right now. */
+export type ViewingBlock = "pending" | "closed" | "not_live" | "banned";
+
+/** F11: what public.request_viewings() returns for the request's page. */
+export type RequestViewings = {
+  booking: ViewingTime | null;
+  last_visit: Omit<ViewingTime, "id"> | null;
+  free: ViewingTime[];
+  free_count: number;
+  can_book: boolean;
+  block: ViewingBlock | null;
+  address: { road_address: string; house_no: string | null; exact_lat: number; exact_lng: number } | null;
+};
+
+/** F11: one row of public.listing_viewing_slots(), for the landlord side. */
+export type ListingViewingSlotRow = {
+  id: string;
+  starts_at: string;
+  ends_at: string;
+  booked_request_id: string | null;
+  booked_at: string | null;
+  member_id: string | null;
+  member_name: string | null;
+  member_avatar: string | null;
+  request_status: RequestStatus | null;
+};
+
+/** F11: one row of public.my_upcoming_viewings(). */
+export type UpcomingViewingRow = {
+  slot_id: string;
+  request_id: string;
+  listing_id: string;
+  listing_title: string | null;
+  listing_type: ListingType;
+  starts_at: string;
+  ends_at: string;
+  side: ThreadSide;
+  member_name: string | null;
 };
 
 export type Database = {
@@ -713,6 +784,7 @@ export type Database = {
         created_at: string;
         responded_at: string | null;
       }>;
+      viewing_slots: Table<ViewingSlotRow>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -823,6 +895,17 @@ export type Database = {
       set_listing_saved: { Args: { p_listing_id: string; p_saved: boolean }; Returns: boolean };
       my_saved_listings: { Args: Record<string, never>; Returns: SavedListingRow[] };
       admin_run_scheduled_jobs: { Args: Record<string, never>; Returns: ScheduledJobsResult };
+      /** F11 viewing slots. add_viewing_slots returns how many times were added; book_viewing the start. */
+      add_viewing_slots: {
+        Args: { p_listing_id: string; p_date: string; p_from: string; p_to: string; p_minutes: number };
+        Returns: number;
+      };
+      remove_viewing_slot: { Args: { p_slot_id: string }; Returns: undefined };
+      book_viewing: { Args: { p_request_id: string; p_slot_id: string }; Returns: string };
+      cancel_viewing: { Args: { p_request_id: string }; Returns: undefined };
+      request_viewings: { Args: { p_request_id: string }; Returns: RequestViewings | null };
+      listing_viewing_slots: { Args: { p_listing_id: string }; Returns: ListingViewingSlotRow[] };
+      my_upcoming_viewings: { Args: { p_limit?: number }; Returns: UpcomingViewingRow[] };
       can_manage_building: { Args: { p_building_id: string }; Returns: boolean };
       add_listing_photo: {
         Args: { p_listing_id: string; p_path: string; p_width: number; p_height: number; p_hash: string | null };

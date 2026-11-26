@@ -171,6 +171,28 @@ export function dbErrorKey(error: { code?: string; message?: string } | null): E
       return "cannotRemoveManager";
     case "invalid_values":
       return "generic";
+    // F11 viewing slots
+    case "viewing_date_invalid":
+      return "viewingDateInvalid";
+    case "viewing_time_invalid":
+      return "viewingTimeInvalid";
+    case "viewing_too_many":
+      return "viewingTooMany";
+    case "viewing_too_soon":
+      return "viewingTooSoon";
+    case "viewing_overlap":
+      return "viewingOverlap";
+    case "viewing_limit":
+      return "viewingLimit";
+    case "viewing_started":
+      return "viewingStarted";
+    case "viewing_taken":
+      return "viewingTaken";
+    case "viewing_gone":
+    case "viewing_changed":
+      return "viewingGone";
+    case "viewing_change_limit":
+      return "viewingChangeLimit";
   }
   switch (error?.code) {
     case "23505":

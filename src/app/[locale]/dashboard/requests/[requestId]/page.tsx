@@ -8,6 +8,7 @@ import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { getThread } from "@/lib/data/messages";
 import { getRequestNewestUnread } from "@/lib/data/notifications";
 import { getTenantDetails } from "@/lib/data/offers";
+import { getRequestViewings } from "@/lib/data/viewings";
 import { formatDate, formatTaka } from "@/lib/format";
 import { dhakaToday, OPEN_STATUSES } from "@/lib/validation/request";
 import type { ThreadInfoRow } from "@/types/database";
@@ -28,6 +29,7 @@ import { PhoneLinks } from "@/components/requests/phone-links";
 import { RequestActions } from "@/components/requests/request-actions";
 import { RequestDetails } from "@/components/requests/request-details";
 import { WithdrawButton } from "@/components/requests/withdraw-button";
+import { ViewingCard } from "@/components/viewings/viewing-card";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -83,7 +85,7 @@ export default async function RequestThreadPage({
   const query = await searchParams;
   if (!UUID.test(requestId)) notFound();
 
-  const [t, tEnum, tInbox, tOffer, locale, user, tree, thread, newestUnread] = await Promise.all([
+  const [t, tEnum, tInbox, tOffer, locale, user, tree, thread, newestUnread, viewings] = await Promise.all([
     getTranslations("Thread"),
     getTranslations("Enums"),
     getTranslations("Inbox"),
@@ -93,6 +95,8 @@ export default async function RequestThreadPage({
     getLocationTree(),
     getThread(requestId),
     getRequestNewestUnread(requestId),
+    // F11: the visit, and the free times the member can book.
+    getRequestViewings(requestId),
   ]);
   if (!user) return null;
   if (!thread) notFound();
@@ -121,7 +125,8 @@ export default async function RequestThreadPage({
   return (
     <div className="flex flex-col gap-4">
       {/* An offer, an answer or a decline from the other side shows without reloading (F8). */}
-      <LiveRefresh messages={false} requestId={info.id} />
+      {/* F11: also new visit times (a notification about this request). */}
+      <LiveRefresh messages={false} requestId={info.id} notificationsFor={user.id} />
       {/* F9: this request's notifications are read now. */}
       {newestUnread && <MarkRequestNotificationsRead requestId={info.id} newest={newestUnread} />}
       <Link
@@ -288,6 +293,17 @@ export default async function RequestThreadPage({
             </div>
           )}
         </OfferCard>
+      )}
+
+      {viewings && (
+        <ViewingCard
+          viewings={viewings}
+          asSeeker={asSeeker}
+          requestId={info.id}
+          listingId={info.listing_id}
+          otherName={otherName}
+          status={info.status}
+        />
       )}
 
       {confirmed && details && <TenancyCard info={info} details={details} />}

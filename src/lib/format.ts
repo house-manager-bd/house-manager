@@ -49,6 +49,26 @@ export function formatTime(iso: string, locale: string) {
   }).format(new Date(iso));
 }
 
+/** The Dhaka day of a visit: "Friday 27 November", or "শুক্রবার ২৭ নভেম্বর" (F11). */
+export function formatVisitDay(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Asia/Dhaka",
+  }).format(new Date(iso));
+}
+
+/** The short Dhaka day of a visit for lists: "Fri 27 Nov", or "শুক্র ২৭ নভে" (F11). */
+export function formatVisitDayShort(iso: string, locale: string) {
+  return new Intl.DateTimeFormat(locale === "bn" ? "bn-BD" : "en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Dhaka",
+  }).format(new Date(iso));
+}
+
 /**
  * A short moment for lists: the time when it is today in Dhaka, otherwise
  * the day ("30 Oct"), with the year only for another year.

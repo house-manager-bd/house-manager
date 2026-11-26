@@ -365,7 +365,7 @@ Good to know:
 - If the worker secret leaks, make a new one (steps 2 to 5). The old one stops working as soon as the new hash is saved.
 
 ### 8.9 Scheduled job (F10)
-Some things happen without anyone clicking: an ad expires 30 days after it went live (with a reminder 3 days before), an offer expires after 48 hours, a request with no step and no message for 14 days closes, and read notifications older than 90 days are deleted. One database function does all of it, `private.run_scheduled_jobs()`. **Supabase Cron** (the `pg_cron` extension, on the free plan) runs it every 10 minutes. Vercel's own cron cannot: on the Hobby plan it runs at most once a day.
+Some things happen without anyone clicking: an ad expires 30 days after it went live (with a reminder 3 days before), an offer expires after 48 hours, a request with no step and no message for 14 days closes, and read notifications older than 90 days are deleted. Since F11 it also reminds both sides 3 hours before a booked visit and deletes old visit times; the F11 migration changes the function, so nothing here needs to be set up again. One database function does all of it, `private.run_scheduled_jobs()`. **Supabase Cron** (the `pg_cron` extension, on the free plan) runs it every 10 minutes. Vercel's own cron cannot: on the Hobby plan it runs at most once a day.
 
 The job's notifications also need emails, and the database cannot send email. So at the end of each run, if emails are waiting, the database calls the live site (`/api/cron/emails`) through the `pg_net` extension, with a **cron secret**. The site checks the secret and sends the waiting emails as in 8.8. A leaked cron secret only lets someone ask the site to send emails that are already waiting.
 

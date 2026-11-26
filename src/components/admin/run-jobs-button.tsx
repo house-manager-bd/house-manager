@@ -44,6 +44,7 @@ export function RunJobsButton() {
             requests: result.requests_expired,
             expired: result.ads_expired,
             reminded: result.ads_reminded,
+            visits: result.viewings_reminded,
             deleted: result.notifications_deleted,
           })}`
         }

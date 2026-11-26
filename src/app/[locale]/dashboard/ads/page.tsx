@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Building2, CircleAlert, ImageOff, Inbox, Megaphone, Plus } from "lucide-react";
+import { Building2, CalendarDays, CircleAlert, ImageOff, Inbox, Megaphone, Plus } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getMyListings } from "@/lib/data/listings";
 import { getInbox } from "@/lib/data/requests";
+import { getUpcomingSlotCounts } from "@/lib/data/viewings";
 import { formatDate, formatTaka } from "@/lib/format";
 import { MIN_PHOTOS, photoUrl } from "@/lib/photos";
 import { Badge } from "@/components/ui/badge";
@@ -23,15 +24,18 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/dashboard/ads">) {
   const query = await searchParams;
-  const [t, tWizard, tEnum, locale, user] = await Promise.all([
+  const [t, tWizard, tEnum, tView, locale, user] = await Promise.all([
     getTranslations("Ads"),
     getTranslations("Wizard"),
     getTranslations("Enums"),
+    getTranslations("Viewing"),
     getLocale(),
     getCurrentUser(),
   ]);
   if (!user) return null;
   const [ads, inbox] = await Promise.all([getMyListings(user.id), getInbox()]);
+  // F11: coming visit times of the live ads.
+  const slotCounts = await getUpcomingSlotCounts(ads.filter((a) => a.status === "active").map((a) => a.id));
   const newRequestsText = (count: number) => (count > 0 ? t("requestsNew", { count }) : null);
 
   return (
@@ -173,6 +177,19 @@ export default async function MyAdsPage({ searchParams }: PageProps<"/[locale]/d
                           label={t("requests")}
                           newText={newRequestsText(inbox.find((row) => row.listing_id === ad.id)?.pending_count ?? 0)}
                         />
+                      )}
+                      {ad.status === "active" && (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/dashboard/ads/${ad.id}/viewings`}>
+                            <CalendarDays aria-hidden />
+                            {tView("pageTitle")}
+                            {(slotCounts.get(ad.id)?.booked ?? 0) > 0 && (
+                              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                                {tView("bookedBadge", { count: slotCounts.get(ad.id)!.booked })}
+                              </span>
+                            )}
+                          </Link>
+                        </Button>
                       )}
                       {ad.status === "draft" && (
                         <Button asChild size="sm" variant="outline">

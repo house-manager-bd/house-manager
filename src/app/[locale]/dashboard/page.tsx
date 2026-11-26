@@ -4,6 +4,7 @@ import {
   BadgeCheck,
   Ban,
   Building2,
+  CalendarCheck,
   CalendarClock,
   Handshake,
   Heart,
@@ -17,7 +18,7 @@ import {
   UserRoundPen,
   UserRoundPlus,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { getCurrentPrivateProfile, getCurrentProfile, getCurrentUser, isAdminProfile } from "@/lib/auth";
 import { getAdminCounts } from "@/lib/data/admin";
@@ -27,6 +28,8 @@ import { getMyBuildings } from "@/lib/data/properties";
 import { getInbox, getMyRequests } from "@/lib/data/requests";
 import { getSavedListings } from "@/lib/data/saved";
 import { getMyBuildingInvites } from "@/lib/data/team";
+import { getMyUpcomingViewings } from "@/lib/data/viewings";
+import { formatTime, formatVisitDayShort } from "@/lib/format";
 import { manageState } from "@/lib/listing-manage";
 import { OPEN_STATUSES } from "@/lib/validation/request";
 import { Alert } from "@/components/ui/alert";
@@ -58,13 +61,18 @@ export default async function DashboardPage() {
   const newRequests = inbox.reduce((sum, row) => sum + row.pending_count, 0);
   // F8: offers the landlord side made that wait for the member's answer.
   const offersWaiting = inbox.reduce((sum, row) => sum + row.offered_count, 0);
-  const [myRequests, unreadMessages, invites, saved, tTeam] = await Promise.all([
+  const [myRequests, unreadMessages, invites, saved, tTeam, visits, tView, tEnum, locale] = await Promise.all([
     mode === "seek" ? getMyRequests() : Promise.resolve([]),
     getUnreadMessageCount(),
     // F10: caretaker invitations (both modes) and saved ads (seekers).
     getMyBuildingInvites(),
     mode === "seek" ? getSavedListings() : Promise.resolve([]),
     getTranslations("Team"),
+    // F11: coming visits, on both sides (a landlord may also be looking).
+    getMyUpcomingViewings(5),
+    getTranslations("Viewing"),
+    getTranslations("Enums"),
+    getLocale(),
   ]);
   // F10: live ads in their last 7 days (the reminder comes 3 days before).
   const expiringAds = ads.filter((a) => manageState(a).expiringSoon).length;
@@ -155,6 +163,39 @@ export default async function DashboardPage() {
                 <ArrowRight aria-hidden />
               </Link>
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {visits.length > 0 && (
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarCheck className="size-5 text-primary" aria-hidden />
+              {tView("dashboardTitle")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col gap-3" data-testid="dashboard-visits">
+              {visits.map((v) => (
+                <li key={v.slot_id}>
+                  <Link href={`/dashboard/requests/${v.request_id}#visit`} className="flex items-start gap-3 hover:underline">
+                    <span className="w-24 shrink-0 text-sm font-semibold text-primary">
+                      {formatVisitDayShort(v.starts_at, locale)}
+                      <span className="block font-normal text-foreground">{formatTime(v.starts_at, locale)}</span>
+                    </span>
+                    <span className="flex min-w-0 flex-col text-sm">
+                      <span className="truncate font-medium">{v.listing_title ?? tEnum(`listingType.${v.listing_type}`)}</span>
+                      <span className="text-muted-foreground">
+                        {v.side === "seeker"
+                          ? tView("dashboardSeeker")
+                          : tView("dashboardLandlord", { name: v.member_name?.trim() || tView("member") })}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       )}

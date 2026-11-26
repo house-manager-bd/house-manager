@@ -1,7 +1,10 @@
 import {
+  AlarmClock,
   BadgeCheck,
   Ban,
+  CalendarCheck,
   CalendarClock,
+  CalendarPlus,
   CalendarX,
   CircleCheck,
   CircleX,
@@ -47,6 +50,10 @@ const LOOK: Record<NotificationType, { icon: LucideIcon; tone: Tone }> = {
   caretaker_declined: { icon: UserRoundX, tone: "bad" },
   caretaker_removed: { icon: UserRoundMinus, tone: "bad" },
   caretaker_left: { icon: UserRoundMinus, tone: "plain" },
+  viewing_booked: { icon: CalendarCheck, tone: "good" },
+  viewing_cancelled: { icon: CalendarX, tone: "bad" },
+  viewing_reminder: { icon: AlarmClock, tone: "offer" },
+  viewing_slots_added: { icon: CalendarPlus, tone: "good" },
 };
 
 const TONE: Record<Tone, string> = {
