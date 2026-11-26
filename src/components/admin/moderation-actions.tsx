@@ -6,7 +6,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { moderateListing } from "@/lib/actions/moderation";
 import type { ErrorKey } from "@/lib/actions/result";
-import { NOTE_MAX, type AdminListingAction } from "@/lib/validation/moderation";
+import { NOTE_MAX, type AdminListingAction } from "@/lib/validation/options";
 import type { ListingStatus } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

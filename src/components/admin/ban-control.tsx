@@ -6,7 +6,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { setUserBan } from "@/lib/actions/moderation";
 import type { ErrorKey } from "@/lib/actions/result";
-import { NOTE_MAX } from "@/lib/validation/moderation";
+import { NOTE_MAX } from "@/lib/validation/options";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FormError, FormSuccess } from "@/components/auth/form-alert";

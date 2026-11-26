@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 
 export function AuthCard({
   title,
@@ -16,7 +16,10 @@ export function AuthCard({
     <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-10 sm:py-16">
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">{title}</CardTitle>
+          {/* The page's main heading (F12: every page has an h1). */}
+          <h1 data-slot="card-title" className="text-2xl leading-snug font-semibold">
+            {title}
+          </h1>
           {subtitle && <CardDescription>{subtitle}</CardDescription>}
         </CardHeader>
         <CardContent className="flex flex-col gap-5">{children}</CardContent>

@@ -5,6 +5,7 @@ import { MailCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Link } from "@/i18n/navigation";
 import { signup } from "@/lib/actions/auth";
 import type { ErrorKey } from "@/lib/actions/result";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
@@ -115,7 +116,20 @@ export function SignupForm() {
         />
       </FormField>
 
-      <p className="text-xs text-muted-foreground">{t("consentNote")}</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        {t.rich("consentNote", {
+          terms: (chunks) => (
+            <Link href="/terms" className="font-medium text-foreground underline underline-offset-2">
+              {chunks}
+            </Link>
+          ),
+          privacy: (chunks) => (
+            <Link href="/privacy" className="font-medium text-foreground underline underline-offset-2">
+              {chunks}
+            </Link>
+          ),
+        })}
+      </p>
 
       <Button type="submit" size="lg" disabled={pending}>
         {t("signupButton")}

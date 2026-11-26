@@ -33,9 +33,12 @@ import { getInbox, getMyOpenRequestCount, getMyRequestForListing } from "@/lib/d
 import { areaLabel, getLocationTree } from "@/lib/data/locations";
 import { formatDate, formatDateTime, formatNumber, formatTaka, placeName } from "@/lib/format";
 import { photoUrl } from "@/lib/photos";
+import { openGraphFor, pageAlternates } from "@/lib/seo";
+import { absoluteUrl } from "@/lib/site";
 import { ADVANCE_WARNING_MONTHS } from "@/lib/validation/listing";
 import { OPEN_REQUEST_LIMIT } from "@/lib/validation/request";
 import { EMPTY_FILTERS, searchHref } from "@/lib/validation/search";
+import { JsonLd, breadcrumbList } from "@/components/seo/json-ld";
 import { AdMapLazy } from "@/components/ad/ad-map-lazy";
 import { Gallery } from "@/components/ad/gallery";
 import { ReopenButton } from "@/components/ad/reopen-button";
@@ -45,7 +48,7 @@ import { ShareButton } from "@/components/ad/share-button";
 import { AdminAdPanel } from "@/components/admin/admin-ad-panel";
 import { ManageActions } from "@/components/ads/manage-actions";
 import { SaveButton } from "@/components/ads/save-button";
-import { RequestForm } from "@/components/requests/request-form";
+import { RequestFormLazy as RequestForm } from "@/components/requests/request-form-lazy";
 import { Alert } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -58,9 +61,10 @@ type Lang = "bn" | "en";
 export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[listingId]">): Promise<Metadata> {
   const { locale, listingId } = await params;
   const lang = locale as Lang;
-  const [t, tEnum, ad, tree] = await Promise.all([
+  const [t, tEnum, tCommon, ad, tree] = await Promise.all([
     getTranslations({ locale: lang, namespace: "AdPage" }),
     getTranslations({ locale: lang, namespace: "Enums" }),
+    getTranslations({ locale: lang, namespace: "Common" }),
     getAdPage(listingId),
     getLocationTree(),
   ]);
@@ -78,26 +82,21 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[lis
     .join(" · ");
   const description = l.description ? `${summary}. ${l.description}`.slice(0, 200) : summary;
   const cover = photos[0];
-  const path = `/${lang}/ads/${l.id}`;
 
   return {
     title,
     description,
-    alternates: {
-      canonical: path,
-      languages: { bn: `/bn/ads/${l.id}`, en: `/en/ads/${l.id}` },
-    },
-    openGraph: {
+    alternates: pageAlternates(lang, `/ads/${l.id}`),
+    openGraph: openGraphFor(lang, {
       title,
       description,
-      url: path,
-      type: "website",
-      locale: lang === "bn" ? "bn_BD" : "en_US",
+      path: `/ads/${l.id}`,
+      siteName: tCommon("appName"),
       images: cover
         ? [{ url: photoUrl(cover.storage_path), width: cover.width ?? undefined, height: cover.height ?? undefined, alt: title }]
         : undefined,
-    },
-    twitter: { card: cover ? "summary_large_image" : "summary" },
+    }),
+    twitter: { card: "summary_large_image" },
     // Ads that are not live, and paused ads (F10), stay out of search engines.
     robots: l.status === "active" && !l.paused_at ? undefined : { index: false, follow: false },
   };
@@ -106,12 +105,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/ads/[lis
 export default async function AdPageRoute({ params, searchParams }: PageProps<"/[locale]/ads/[listingId]">) {
   const { listingId } = await params;
   const query = await searchParams;
-  const [t, tEnum, tReport, tRequest, tErrors, locale, ad, tree, profile] = await Promise.all([
+  const [t, tEnum, tReport, tRequest, tErrors, tCommon, locale, ad, tree, profile] = await Promise.all([
     getTranslations("AdPage"),
     getTranslations("Enums"),
     getTranslations("Report"),
     getTranslations("RequestForm"),
     getTranslations("Errors"),
+    getTranslations("Common"),
     getLocale(),
     getAdPage(listingId),
     getLocationTree(),
@@ -216,9 +216,66 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
   const nextPath = `/${locale}/ads/${l.id}`;
   const mapLat = address?.exact_lat ?? building.approx_lat;
   const mapLng = address?.exact_lng ?? building.approx_lng;
+  // F12: structured data only for ads that search engines may index.
+  const structured = l.status === "active" && !l.paused_at ? adStructuredData() : null;
+
+  function adStructuredData() {
+    const areaRow = tree.areas.find((a) => a.id === building.area_id);
+    const thanaRow = tree.thanas.find((th) => th.id === areaRow?.thana_id);
+    const districtRow = tree.districts.find((d) => d.id === thanaRow?.district_id);
+    const url = absoluteUrl(nextPath);
+    const home = {
+      "@type": unit.unit_kind === "flat" ? "Apartment" : "Room",
+      name: title,
+      ...(unit.bedrooms !== null && { numberOfRooms: unit.bedrooms, numberOfBedrooms: unit.bedrooms }),
+      ...(unit.bathrooms !== null && { numberOfBathroomsTotal: unit.bathrooms }),
+      ...(unit.size_sqft !== null && { floorSize: { "@type": "QuantitativeValue", value: unit.size_sqft, unitCode: "FTK" } }),
+      ...(unit.floor_no !== null && { floorLevel: String(unit.floor_no) }),
+      // The area only: the street address stays private (plan section 1.5).
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: placeName(areaRow, locale),
+        ...(districtRow && { addressRegion: placeName(districtRow, locale) }),
+        addressCountry: "BD",
+      },
+    };
+    const listing = {
+      "@context": "https://schema.org",
+      "@type": "RealEstateListing",
+      name: title,
+      url,
+      inLanguage: locale,
+      ...(l.description && { description: l.description.slice(0, 500) }),
+      ...(l.published_at && { datePosted: l.published_at }),
+      ...(photos.length > 0 && { image: photos.map((p) => photoUrl(p.storage_path)) }),
+      about: home,
+      ...(l.monthly_rent !== null && {
+        offers: {
+          "@type": "Offer",
+          businessFunction: "http://purl.org/goodrelations/v1#LeaseOut",
+          price: l.monthly_rent,
+          priceCurrency: "BDT",
+          priceSpecification: { "@type": "UnitPriceSpecification", price: l.monthly_rent, priceCurrency: "BDT", unitCode: "MON" },
+          availability: "https://schema.org/InStock",
+          ...(l.available_from && { availabilityStarts: l.available_from }),
+        },
+      }),
+    };
+    const crumbs = breadcrumbList([
+      [tCommon("appName"), absoluteUrl(`/${locale}`)],
+      [t("allAds"), absoluteUrl(`/${locale}/ads`)],
+      [
+        placeName(areaRow, locale),
+        absoluteUrl(`/${locale}${searchHref(EMPTY_FILTERS, { place: { kind: "area", id: building.area_id } })}`),
+      ],
+      [title, url],
+    ]);
+    return [listing, crumbs];
+  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 pt-6 sm:pt-8 lg:pb-8">
+      {structured && <JsonLd data={structured} />}
       <nav aria-label={t("breadcrumb")} className="-mb-2 text-sm text-muted-foreground">
         <ol className="flex flex-wrap items-center gap-1.5">
           <li>
@@ -489,7 +546,7 @@ export default async function AdPageRoute({ params, searchParams }: PageProps<"/
                   </Button>
                   <p className="text-center text-sm text-muted-foreground">
                     {t("noAccount")}{" "}
-                    <Link href="/signup" className="text-primary underline-offset-2 hover:underline">
+                    <Link href="/signup" className="font-medium text-primary underline underline-offset-2">
                       {t("signupLink")}
                     </Link>
                   </p>

@@ -34,7 +34,8 @@
 }
 
 @theme inline {
-  --font-bangla: "Noto Sans Bengali Variable", "Noto Sans Bengali", sans-serif;
+  /* --font-noto-bengali is the preloaded Bangla part of the font (F12, src/app/fonts.ts). */
+  --font-bangla: var(--font-noto-bengali), "Noto Sans Bengali Variable", "Noto Sans Bengali", sans-serif;
   --font-latin: "Inter Variable", "Inter", system-ui, sans-serif;
 
   --color-background: var(--background);

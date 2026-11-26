@@ -408,6 +408,33 @@ Good to know:
 - The first run after the F10 migration expires the ads that are past their 30 days. The migration gave every live ad at least 7 more days, so each poster gets the 3 day reminder first.
 - The demo project needs steps 3 and 4 too (with its own site address if it uses another Vercel project).
 
+### 8.10 Keep-alive and Google Search Console (F12)
+**Keep-alive.** Supabase pauses a free project after about a week with too little database activity, and a paused project takes the site down until someone restores it in the dashboard. Supabase Cron (8.9) runs inside the database, so it may not count, and it stops when the project pauses. The workflow `.github/workflows/keep-alive.yml` runs on GitHub on Monday and Thursday at 09:17 Dhaka time: it opens the live search page (which reads the database) and asks each Supabase project it has secrets for for one public row.
+
+1. GitHub, `house-manager-bd/house-manager`, **Settings**, **Secrets and variables**, **Actions**, **New repository secret**, twice:
+   - `SUPABASE_DEV_URL`: the dev project's URL (Supabase, **Project Settings**, **Data API**), for example `https://<ref>.supabase.co`.
+   - `SUPABASE_DEV_PUBLISHABLE_KEY`: the dev project's publishable key (**Project Settings**, **API Keys**). It is the same public key the site sends to every browser, so it can only read what a visitor can read.
+   - When the demo project exists: `SUPABASE_DEMO_URL` and `SUPABASE_DEMO_PUBLISHABLE_KEY` the same way. Without them, the demo is skipped.
+2. **Actions**, **Keep Supabase awake**, **Run workflow**. After a few seconds a green tick; the log shows "Live site /bn/ads answered 200" and "DEV: Supabase answered 200".
+3. If the live site moves to another address, add a repository **variable** (same page, **Variables** tab) `SITE_URL` with the new address.
+
+Good to know: GitHub turns off scheduled workflows in a public repository after 60 days without any commit. Before a long break (after the course), push a small change or re-enable the workflow under **Actions**. A red run sends an email to whoever last changed the workflow file.
+
+**Google Search Console** (once, after the F12 merge, with the project Gmail):
+1. https://search.google.com/search-console, **Add property**, **URL prefix**: `https://house-manager-rho-eight.vercel.app/`.
+2. Verification method **HTML tag**. Copy only the `content` value (a long code) from the tag Google shows.
+3. Vercel, project `house-manager`, **Settings**, **Environment Variables**, **Create New**: `GOOGLE_SITE_VERIFICATION`, type **Config**, the code from step 2, environment **Production** only. Redeploy production (**Deployments**, the latest production deployment, **Redeploy**).
+4. Back in Search Console: **Verify**. Then **Sitemaps**, enter `sitemap.xml`, **Submit**.
+5. The `vercel.app` address belongs to Vercel, so the Domain method is not possible; with your own domain later, add that as a Domain property.
+
+### 8.11 End-to-end tests on a laptop (F12)
+The Playwright tests in `e2e/` drive Chrome against a site that is already running. They never start a server.
+1. Once: `npm install`, then `npx playwright install chromium` (about 150 MB). On Windows, run it in PowerShell from the repo folder.
+2. Public pages (read-only): `$env:E2E_BASE_URL="<site address>"; npm run test:e2e:public`. Without `E2E_BASE_URL` the tests use `http://localhost:3000` (`npm run dev` in another window).
+3. The request-to-tenancy flow writes data as the test accounts N, M1 and ADM: also set `$env:E2E_PASSWORD="<their password>"` (or `E2E_LANDLORD_PASSWORD`, `E2E_SEEKER_PASSWORD`, `E2E_ADMIN_PASSWORD`), run `npm run test:e2e`, and clean up afterwards with the query in `docs/testing/F12.md` section 8. Passwords only go into the terminal, never into a file in the repo.
+4. A failed run leaves `e2e-report/index.html` (open it in a browser) with a screenshot and a step-by-step trace. Both output folders are in `.gitignore`.
+5. `E2E_CHROMIUM_PATH` can point to an installed Chrome instead of step 1's download.
+
 ---
 
 ## Final checklist

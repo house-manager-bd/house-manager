@@ -33,6 +33,10 @@ Open http://localhost:3000. It redirects to `/bn`. Use the language button in th
 | `npm run build` | Production build (run before opening a pull request) |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript check |
+| `npm run test:e2e:public` | End-to-end check of the public pages (load, headings, accessibility with axe, sitemap). Read-only |
+| `npm run test:e2e` | All end-to-end tests, including the full request-to-tenancy flow, which writes test data (see `docs/testing/F12.md` section 6) |
+
+The end-to-end tests use Playwright. Install its browser once with `npx playwright install chromium`. They run against a site that is already running: `npm run dev`, or a preview with `E2E_BASE_URL=https://...`.
 
 ## Database
 
@@ -49,9 +53,12 @@ Pick one way per project and stick to it, so migrations are not applied twice.
 messages/            bn.json and en.json, every UI string
 src/app/[locale]/    pages (bn and en)
 src/app/auth/        auth callback (email links, Google)
-src/components/      ui/, layout/, auth/, dashboard/, profile/, properties/, wizard/, ad/, search/, admin/, requests/, messages/
+src/components/      ui/, layout/, auth/, dashboard/, profile/, properties/, wizard/, ad/, search/, admin/, requests/, messages/, legal/, seo/
 src/i18n/            next-intl routing and navigation
 src/lib/             supabase clients, server actions, validation, helpers
 src/proxy.ts         language redirect, session refresh, protected pages
 supabase/migrations/ SQL migrations with RLS
+e2e/                 Playwright end-to-end tests (F12)
+public/              share pictures and app icons
+.github/workflows/   keep-alive for the Supabase free plan (F12)
 ```

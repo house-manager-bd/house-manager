@@ -5,8 +5,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { toAsciiDigits } from "@/lib/phone";
 import { cn } from "@/lib/utils";
-import { LISTING_TYPES, TENANT_TYPES } from "@/lib/validation/listing";
-import { AMENITIES } from "@/lib/validation/property";
+import { AMENITIES, LISTING_TYPES, TENANT_TYPES } from "@/lib/validation/options";
 import {
   BEDROOM_FILTERS,
   EMPTY_FILTERS,

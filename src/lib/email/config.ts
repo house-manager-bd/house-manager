@@ -1,4 +1,5 @@
 import "server-only";
+import { deploymentUrl } from "@/lib/site";
 
 // F9 email settings, from environment variables (docs/SETUP.md 8.8). Secrets
 // live only on Vercel and in .env.local, never in the repo.
@@ -43,9 +44,5 @@ export function getEmailConfig(): EmailConfig | null {
  * request header, so nobody can make the emails link somewhere else.
  */
 export function siteUrlForEmails(): string {
-  if (process.env.VERCEL_ENV === "preview") {
-    const host = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL;
-    if (host) return `https://${host}`;
-  }
-  return (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/+$/, "");
+  return deploymentUrl();
 }

@@ -527,102 +527,105 @@ export function Thread({
         </div>
       )}
 
-      <ol role="log" aria-live="polite" aria-label={t("messagesLabel")} className="flex flex-col gap-1">
-        {items.map((item) => {
-          if (item.type === "day") {
+      {/* The live region wraps the list, since a list cannot also be a log (F12). */}
+      <div role="log" aria-live="polite" aria-label={t("messagesLabel")}>
+        <ol className="flex flex-col gap-1">
+          {items.map((item) => {
+            if (item.type === "day") {
+              return (
+                <li key={item.key} className="flex justify-center py-3">
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground" suppressHydrationWarning>
+                    {dayLabel(item.day)}
+                  </span>
+                </li>
+              );
+            }
+            if (item.type === "unread") {
+              return (
+                <li key={item.key} id="thread-unread" className="flex items-center gap-3 py-2 text-xs font-semibold text-amber-800">
+                  <span className="h-px flex-1 bg-accent/60" aria-hidden />
+                  {t("newMessages")}
+                  <span className="h-px flex-1 bg-accent/60" aria-hidden />
+                </li>
+              );
+            }
+            if (item.type === "event") {
+              const view = eventView(item.event);
+              const Icon = view.icon;
+              return (
+                <li key={item.key} className="flex justify-center py-2">
+                  <div className="flex max-w-[90%] flex-col items-center gap-1 rounded-lg border border-dashed px-3 py-2 text-center text-xs text-muted-foreground">
+                    <span className="flex flex-wrap items-center justify-center gap-x-1.5">
+                      <Icon className="size-3.5 shrink-0" aria-hidden />
+                      <span>{view.text}</span>
+                      <span aria-hidden>·</span>
+                      <time dateTime={isoTime(item.event.at)} suppressHydrationWarning>
+                        {formatTime(isoTime(item.event.at), locale)}
+                      </time>
+                    </span>
+                    {view.note && <span className="break-words whitespace-pre-line text-foreground">{t("eventNote", { note: view.note })}</span>}
+                  </div>
+                </li>
+              );
+            }
+
+            const m = item.message;
+            const mine = m.sender_id === meId;
+            const mySide = !fromOtherSide(m.sender_id);
+            const showName = item.groupStart && !mine && m.sender_id !== counterpartId;
             return (
-              <li key={item.key} className="flex justify-center py-3">
-                <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground" suppressHydrationWarning>
-                  {dayLabel(item.day)}
+              <li
+                key={item.key}
+                className={cn("flex flex-col", mySide ? "items-end" : "items-start", item.groupStart ? "pt-2" : "")}
+              >
+                {showName && <span className="px-1 pb-0.5 text-xs font-medium text-muted-foreground">{nameOf(m.sender_id)}</span>}
+                {m.fromRequest && <span className="px-1 pb-0.5 text-xs text-muted-foreground">{t("withRequest")}</span>}
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap sm:max-w-[75%]",
+                    mine
+                      ? "rounded-br-md bg-primary text-primary-foreground"
+                      : mySide
+                        ? "rounded-br-md bg-primary/10 text-foreground"
+                        : "rounded-bl-md bg-muted text-foreground",
+                    m.pending && "opacity-70",
+                  )}
+                >
+                  {m.body}
+                </div>
+                <span className="flex items-center gap-1 px-1 pt-0.5 text-[11px] text-muted-foreground">
+                  {m.pending ? (
+                    t("sending")
+                  ) : (
+                    <time dateTime={isoTime(m.created_at)} suppressHydrationWarning>
+                      {formatTime(isoTime(m.created_at), locale)}
+                    </time>
+                  )}
+                  {!m.pending && m.id === lastMineId && (
+                    <>
+                      <span aria-hidden>·</span>
+                      {m.read_at ? (
+                        <span className="flex items-center gap-0.5 text-primary">
+                          <CheckCheck className="size-3.5" aria-hidden />
+                          {t("seen")}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-0.5">
+                          <Check className="size-3.5" aria-hidden />
+                          {t("delivered")}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </span>
               </li>
             );
-          }
-          if (item.type === "unread") {
-            return (
-              <li key={item.key} id="thread-unread" className="flex items-center gap-3 py-2 text-xs font-semibold text-amber-800">
-                <span className="h-px flex-1 bg-accent/60" aria-hidden />
-                {t("newMessages")}
-                <span className="h-px flex-1 bg-accent/60" aria-hidden />
-              </li>
-            );
-          }
-          if (item.type === "event") {
-            const view = eventView(item.event);
-            const Icon = view.icon;
-            return (
-              <li key={item.key} className="flex justify-center py-2">
-                <div className="flex max-w-[90%] flex-col items-center gap-1 rounded-lg border border-dashed px-3 py-2 text-center text-xs text-muted-foreground">
-                  <span className="flex flex-wrap items-center justify-center gap-x-1.5">
-                    <Icon className="size-3.5 shrink-0" aria-hidden />
-                    <span>{view.text}</span>
-                    <span aria-hidden>·</span>
-                    <time dateTime={isoTime(item.event.at)} suppressHydrationWarning>
-                      {formatTime(isoTime(item.event.at), locale)}
-                    </time>
-                  </span>
-                  {view.note && <span className="break-words whitespace-pre-line text-foreground">{t("eventNote", { note: view.note })}</span>}
-                </div>
-              </li>
-            );
-          }
-
-          const m = item.message;
-          const mine = m.sender_id === meId;
-          const mySide = !fromOtherSide(m.sender_id);
-          const showName = item.groupStart && !mine && m.sender_id !== counterpartId;
-          return (
-            <li
-              key={item.key}
-              className={cn("flex flex-col", mySide ? "items-end" : "items-start", item.groupStart ? "pt-2" : "")}
-            >
-              {showName && <span className="px-1 pb-0.5 text-xs font-medium text-muted-foreground">{nameOf(m.sender_id)}</span>}
-              {m.fromRequest && <span className="px-1 pb-0.5 text-xs text-muted-foreground">{t("withRequest")}</span>}
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm break-words whitespace-pre-wrap sm:max-w-[75%]",
-                  mine
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : mySide
-                      ? "rounded-br-md bg-primary/10 text-foreground"
-                      : "rounded-bl-md bg-muted text-foreground",
-                  m.pending && "opacity-70",
-                )}
-              >
-                {m.body}
-              </div>
-              <span className="flex items-center gap-1 px-1 pt-0.5 text-[11px] text-muted-foreground">
-                {m.pending ? (
-                  t("sending")
-                ) : (
-                  <time dateTime={isoTime(m.created_at)} suppressHydrationWarning>
-                    {formatTime(isoTime(m.created_at), locale)}
-                  </time>
-                )}
-                {!m.pending && m.id === lastMineId && (
-                  <>
-                    <span aria-hidden>·</span>
-                    {m.read_at ? (
-                      <span className="flex items-center gap-0.5 text-primary">
-                        <CheckCheck className="size-3.5" aria-hidden />
-                        {t("seen")}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-0.5">
-                        <Check className="size-3.5" aria-hidden />
-                        {t("delivered")}
-                      </span>
-                    )}
-                  </>
-                )}
-              </span>
-            </li>
-          );
-        })}
-        {shownCount === 0 && !requestMessage && (
-          <li className="py-6 text-center text-sm text-muted-foreground">{t("empty")}</li>
-        )}
-      </ol>
+          })}
+          {shownCount === 0 && !requestMessage && (
+            <li className="py-6 text-center text-sm text-muted-foreground">{t("empty")}</li>
+          )}
+        </ol>
+      </div>
 
       <div className="sticky bottom-0 z-10 mt-4 flex flex-col gap-2 bg-linear-to-t from-surface from-80% to-surface/0 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {newBelow && (

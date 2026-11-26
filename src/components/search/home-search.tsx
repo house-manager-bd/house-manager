@@ -6,7 +6,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "@/i18n/navigation";
 import { formatTaka } from "@/lib/format";
 import type { PlaceGroup } from "@/lib/search";
-import { LISTING_TYPES } from "@/lib/validation/listing";
+import { LISTING_TYPES } from "@/lib/validation/options";
 import { EMPTY_FILTERS, parsePlace, searchHref } from "@/lib/validation/search";
 import type { ListingType } from "@/types/database";
 import { Button } from "@/components/ui/button";

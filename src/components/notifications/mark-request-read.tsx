@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { markRequestNotificationsRead } from "@/lib/actions/notification";
-import { NOTIFICATIONS_READ_EVENT } from "@/lib/realtime";
+import { NOTIFICATIONS_READ_EVENT } from "@/lib/realtime-events";
 
 /**
  * Opening a request's page reads its news, so its notifications are marked

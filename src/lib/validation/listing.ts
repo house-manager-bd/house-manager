@@ -9,8 +9,9 @@ import {
   requiredText,
 } from "./common";
 
-export const LISTING_TYPES = ["flat", "room", "sublet", "mess_seat"] as const;
-export const TENANT_TYPES = ["family", "bachelor_male", "bachelor_female", "student", "job_holder"] as const;
+import { LISTING_TYPES, TENANT_TYPES } from "./options";
+
+export { LISTING_TYPES, TENANT_TYPES };
 export const ELECTRICITY = ["prepaid", "postpaid", "included"] as const;
 export const WATER = ["included", "tenant_pays"] as const;
 export const GAS_BILL = ["included", "tenant_pays"] as const;

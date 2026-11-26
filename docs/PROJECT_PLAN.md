@@ -194,7 +194,7 @@ What this app needs: public ad pages that Google and Facebook can read, relation
 - **Hosting: Vercel Hobby,** connected to GitHub. Every pull request gets its own preview link, which is useful for team review.
 
 Free-tier gotchas that affect this project (verify current limits on each provider's page):
-- **Supabase pauses a free project after about 7 days without activity.** Open it before every demo and the viva. A weekly GitHub Action that runs one small query is a common fix.
+- **Supabase pauses a free project after about 7 days without activity.** Open it before every demo and the viva. A weekly GitHub Action that runs one small query is a common fix (done in F12: `.github/workflows/keep-alive.yml`, twice a week, SETUP.md 8.10).
 - **Supabase's built-in email sender allows only a few emails per hour.** Sign-up confirmation emails will fail during testing with five people. Connect a free SMTP provider (for example Resend or Brevo) in F1.
 - **Supabase free storage is about 1 GB.** At about 1.5 MB per ad after compression, that is several hundred ads, enough for coursework.
 - **Vercel Hobby does not allow commercial use.** Move to a paid plan or another host before charging money.
@@ -394,6 +394,7 @@ flowchart TD
     HOME["Home: search bar, featured and latest ads"] --> SEARCH["Search results with filters and map: /ads"]
     SEARCH --> DETAIL["Ad detail: /ads/id"]
     HOME --> RIGHTS["Know your rights: /rights"]
+    HOME --> LEGAL["Terms and privacy: /terms, /privacy"]
     HOME --> LOGIN["Log in and sign up"]
     DETAIL -->|"logged in"| REQ["Send request"]
     LOGIN --> DASH["Dashboard: /dashboard"]
@@ -433,8 +434,8 @@ house-manager/
     bn.json
     en.json
   public/
-    icons/
-    og-default.png
+    og-bn.png, og-en.png        (F12: share pictures)
+    icon-192.png, icon-512.png  (F12: web app manifest icons)
   src/
     app/
       [locale]/
@@ -529,14 +530,12 @@ house-manager/
     config.toml
     migrations/
     seed.sql
-  tests/
-    unit/
-    e2e/
+  e2e/                        (F12: Playwright, public-pages and request-to-tenancy specs)
+  playwright.config.ts
   .env.example
   .github/
     workflows/
-      ci.yml
-      keep-alive.yml
+      keep-alive.yml            (F12)
   package.json
   README.md
 ```
@@ -549,7 +548,7 @@ house-manager/
 - Framework CLI: `npx create-next-app@latest`, `npx shadcn@latest`
 - Database: Supabase CLI for migrations (`supabase db push`) against a cloud dev project, so nobody needs Docker
 - Validation: zod schemas shared by the form and the server action
-- Tests: Vitest (unit), Playwright (two or three end-to-end flows)
+- Tests: Playwright with axe (F12, `e2e/`): the public pages in both languages and the request-to-tenancy flow. Each feature's database rules are checked on a local Postgres before its pull request, so no separate unit test suite was added
 - Deploy: Vercel connected to GitHub, auto-deploy on `main`, preview on every pull request
 - Version control: Git and GitHub, one branch per feature, pull request with at least one teammate review, synced to the Claude Project
 
@@ -586,7 +585,9 @@ Each feature is small enough to build, test and deploy on its own.
 - [x] **F11: Viewing slots.** Landlord adds time slots, a shortlisted seeker books one, moves or cancels it; reminders 3 hours before; a closed request frees its time.
   Depends on F6 to F10.
   Done when: the landlord adds times, a shortlisted member books one and moves it, another member cannot take a booked time, both sides see the visit and get the reminder, and a closed request frees its time.
-- [ ] **F12: Polish.** Sitemap, structured data, Lighthouse pass, accessibility check, keep-alive workflow, Playwright tests for the request-to-tenancy flow.
+- [x] **F12: Polish.** Sitemap, structured data, Lighthouse pass, accessibility check, keep-alive workflow, Playwright tests for the request-to-tenancy flow.
+  Done when: the sitemap lists the live ads and the public pages, ads have structured data and share previews, Lighthouse shows 100 for accessibility and SEO on the live public pages, axe finds no serious problems, the keep-alive workflow runs, and the Playwright test goes from a new ad to a tenancy.
+  As built in F12 (no database change): `robots.txt` (previews closed) and `sitemap.xml` (made at most once an hour through `search_listings`, so it lists only what visitors can open: home, search, the area, thana and ad type pages that have live ads, every live ad with its cover photo, rights, terms and privacy, each in both languages with hreflang links). JSON-LD: `RealEstateListing` with `Apartment` or `Room` (rooms, size, floor, the area and district only, the rent per month in BDT) and `BreadcrumbList` on live ad pages, breadcrumbs on area and thana pages, `WebSite` and `Organization` on the home page. Every indexable page sets its own canonical link and hreflang links (with `x-default` to Bangla); the layout no longer sets a canonical. Site icons, a web app manifest, and a share picture per language (`public/og-bn.png`, `og-en.png`) for pages without a photo. The pages **Know your rights** (`/rights`, the 1991 Act in plain words, with a link to the official text), **Terms of use** and **Privacy policy** in both languages, linked from the footer and the sign-up form. Speed: zod and the Supabase client no longer load on visitors' pages (zod-free `validation/options.ts` and search parsing, the request form loaded on its own, the bell loading its live connection after the page), the Bangla font preloaded through `next/font/local` (same file, no layout shift), and an early connection to Supabase Storage. Accessibility: a skip link, one h1 on every page, the language button and the account menu named by what they show, underlined links in text, a results heading on search, and the message list inside a log region. Tests: `e2e/public-pages.spec.ts` (24 tests, axe on every public page in both languages) and `e2e/request-to-tenancy.spec.ts` (building, unit, ad with photos, approval if needed, request, shortlist, message, visit, offer, acceptance, tenancy), run with `npm run test:e2e` against a running site (SETUP.md 8.11).
 
 **Later, for production (not part of the course):** phone OTP, featured ads paid with bKash, NID verified badge, housing society accounts, moderation team tools, tile provider for maps, Flutter app on the same Supabase backend, commercial and garage ads.
 
@@ -702,17 +703,27 @@ Each feature is small enough to build, test and deploy on its own.
 | 2026-11-26 | Visit times are not in the Realtime publication; booking and cancelling touch the request's `updated_at` instead | Open request pages and the landlord's page already refresh on request changes (F8), so no new channel is needed on the free plan | Adding viewing_slots to Realtime |
 | 2026-11-26 | An email of a type the deployment does not know is left for a newer deployment (marked failed, tried again later) | Production and previews share the dev database, so an older deployment can claim emails a new feature created | Sending them with a fallback text |
 
+| 2026-11-26 | F12 adds no migration; the sitemap reads ads through `search_listings` | It already returns only live, unpaused ads with visitor columns, so the sitemap cannot list anything a visitor cannot open, and testing needs no SQL step | A new `sitemap_listings()` function |
+| 2026-11-26 | Structured data uses `RealEstateListing` with the area only, and breadcrumbs | Google has no rich result for rentals, but breadcrumbs show in results and the listing data helps other search engines and AI tools; the street address stays private (section 1.5) | `Product` or `Offer` alone; including the exact address or pin |
+| 2026-11-26 | Previews are closed in robots.txt; canonical links always point to the live site | Previews share the dev database and show test data | Letting previews be indexed |
+| 2026-11-26 | Know your rights, Terms and Privacy are written in plain language from the Blueprint and the Act, with a "not legal advice" note on the rights page | The SRS asks for them, and members need to know what is shared and when | Copying a generic template |
+| 2026-11-26 | Public pages load no zod and no Supabase client; the Bangla font is preloaded with `next/font/local` | About 155 KB less JavaScript on phones, and the text no longer jumps when the font arrives (layout shift 0.27 to 0 on the home page) | Leaving the bundles as they were; `font-display: optional` (first visits would show a system font) |
+| 2026-11-26 | End-to-end tests run on a laptop against a running site, not in GitHub Actions | They write data as test accounts on the shared dev database and need their passwords | A CI job on every pull request |
+| 2026-11-26 | The keep-alive workflow opens the live search page and reads one public row with the publishable key, twice a week | It works without any secret for the dev project (through the site) and covers the demo project once its two secrets are set | pg_cron only (it stops when the project pauses); an outside ping service |
+
 ## 11. Open questions
 - Submission deadlines and the marking scheme for CSE 400.
 - Confirm teammate ownership (section U4), Mollika's full student ID, and name spellings for the report.
 - Public product name: House Manager, or a Bangla brand name.
 - Verify the Mirpur thana and area list against the current DMP list.
-- Lawyer review of the rights page wording before production.
+- Lawyer review of the rights page wording before production, and of the Terms and Privacy pages before charging money or launching outside the course (written in F12 from the Blueprint and the Act, not by a lawyer).
+- Photo sizes: search cards and the home page load the full photo (longest side 1600 px). For production, also save a small copy (about 600 px) at upload, or use an image service, so search pages on phones download less.
+- Google Search Console needs the HTML tag code on Vercel (`GOOGLE_SITE_VERIFICATION`, SETUP.md 8.10); with your own domain later, verify the domain instead.
 - Duplicate buildings: two people may add the same building (for example two subletting tenants). For the course, only the creator and owner see a building's units. For production, plan a claim and merge flow where the real owner claims an unclaimed building.
 - Reports from brand new accounts: three fresh accounts can hide any ad until an admin restores it. For production, consider counting only reports from accounts older than a day, or with a confirmed phone (F5 keeps the plan's rule).
 - Requests on an ad that stops being live (hidden, rejected, expired) stay open until the member withdraws, the landlord declines them, or 14 days pass without a step or message (F10).
 - Realtime at scale: every open dashboard listens for message changes, and Supabase checks each change against each listener. Fine for the course; beyond a few hundred people online at once, move to Broadcast with one private channel per member.
-- Reporting a message: members cannot report an abusive message yet, and admins cannot read threads. Add a report button that shares that one message with admins (F12 or production).
+- Reporting a message: members cannot report an abusive message yet, and admins cannot read threads. Add a report button that shares that one message with admins (production; left out of F12 because it needs a database change).
 - Cancelling a confirmed tenancy before move-in (section 1.5: the NID data and photo are deleted then). Not built in F8, so a confirmation cannot be undone in the app; the team can delete a test tenancy in the SQL Editor (docs/testing/F8.md, Query 6). F10 re-lists only units without an active tenancy; plan cancelling and ending tenancies with House Manage, including what happens to the ad and the requests that were declined automatically.
 - On a mess, a request for more people than the seats left stays open after other seats are taken; the landlord sees why no offer can be made and can decline it. Declining it automatically would also stop the member from asking again with fewer people.
 - Account deletion: tenancies keep both profiles (deleting them is blocked). When account deletion is built, decide what happens to tenancies and NID data (PDPA 2026).

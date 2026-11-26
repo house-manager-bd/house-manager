@@ -101,8 +101,7 @@ export function watchRequests({
   };
 }
 
-/** Sent by the thread after it marks messages as read, so the menu badge updates at once. */
-export const MESSAGES_READ_EVENT = "hm:messages-read";
+export { MESSAGES_READ_EVENT } from "./realtime-events";
 
 /**
  * F9: listens to the member's notifications (a new one, or one marked read
@@ -142,5 +141,4 @@ export function watchNotifications({
   };
 }
 
-/** Sent after notifications are marked read on a page, so the bell updates at once. */
-export const NOTIFICATIONS_READ_EVENT = "hm:notifications-read";
+export { NOTIFICATIONS_READ_EVENT } from "./realtime-events";
