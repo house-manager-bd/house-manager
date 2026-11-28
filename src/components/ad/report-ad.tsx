@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { reportListing } from "@/lib/actions/moderation";
 import type { ErrorKey } from "@/lib/actions/result";
-import { NOTE_MAX, REPORT_REASONS } from "@/lib/validation/moderation";
+import { NOTE_MAX, REPORT_REASONS } from "@/lib/validation/options";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";

@@ -1,9 +1,9 @@
-import { z } from "zod";
 import { toAsciiDigits } from "@/lib/phone";
 import type { ListingType } from "@/types/database";
-import { optionalInt } from "./common";
-import { LISTING_TYPES, TENANT_TYPES } from "./listing";
-import { AMENITIES } from "./property";
+import { AMENITIES, LISTING_TYPES, TENANT_TYPES } from "./options";
+
+// No zod in this file (F12): the home and search pages use it in the
+// browser, and the validation library would add about 80 KB to them.
 
 // Search filters live in the URL, so a search can be shared, bookmarked and
 // opened by Google. The same parser runs on the server (search page) and in
@@ -88,9 +88,22 @@ function pickOne<T extends string>(value: string | null, allowed: readonly T[]):
   return value !== null && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
 
-const rentSchema = optionalInt(0, RENT_MAX).catch(null);
-const pageSchema = optionalInt(1, MAX_PAGE).catch(null);
-const dateSchema = z.iso.date().nullable().catch(null);
+/** "১২,০০০" or "12000" as a whole number between min and max, otherwise null. */
+function intInRange(value: string | null, min: number, max: number): number | null {
+  if (value === null) return null;
+  const text = toAsciiDigits(value).replace(/[,\s]/g, "");
+  if (text === "") return null;
+  const n = Number(text);
+  return Number.isInteger(n) && n >= min && n <= max ? n : null;
+}
+
+/** A real calendar date written as yyyy-mm-dd, otherwise null. */
+function isoDateOrNull(value: string | null): string | null {
+  if (value === null || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d ? value : null;
+}
 
 /** "Mirpur  10 " becomes "Mirpur 10". At most 80 characters. */
 export function cleanKeyword(value: string | null | undefined) {
@@ -114,8 +127,8 @@ export function placeParam(place: PlaceFilter | null) {
 }
 
 export function parseSearchParams(raw: RawParams): SearchFilters {
-  let rentMin = rentSchema.parse(first(raw, "min"));
-  let rentMax = rentSchema.parse(first(raw, "max"));
+  let rentMin = intInRange(first(raw, "min"), 0, RENT_MAX);
+  let rentMax = intInRange(first(raw, "max"), 0, RENT_MAX);
   if (rentMin === 0) rentMin = null;
   if (rentMin !== null && rentMax !== null && rentMin > rentMax) [rentMin, rentMax] = [rentMax, rentMin];
 
@@ -131,9 +144,9 @@ export function parseSearchParams(raw: RawParams): SearchFilters {
     bedsMin: (BEDROOM_FILTERS as readonly number[]).includes(beds) ? beds : null,
     amenities: pickList(raw, "amenity", AMENITIES),
     gas: pickOne(first(raw, "gas"), GAS_FILTERS),
-    availableBy: dateSchema.parse(first(raw, "by")),
+    availableBy: isoDateOrNull(first(raw, "by")),
     sort: pickOne(first(raw, "sort"), SEARCH_SORTS) ?? "newest",
-    page: pageSchema.parse(first(raw, "page")) ?? 1,
+    page: intInRange(first(raw, "page"), 1, MAX_PAGE) ?? 1,
     view: pickOne(first(raw, "view"), SEARCH_VIEWS) ?? "list",
   };
 }

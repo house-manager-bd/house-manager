@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { pageAlternates } from "@/lib/seo";
 import { AuthCard } from "@/components/auth/auth-card";
 import { GoogleButton, OrDivider } from "@/components/auth/google-button";
 import { SignupForm } from "@/components/auth/signup-form";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth");
-  return { title: t("signupTitle") };
+  return { title: t("signupTitle"), alternates: pageAlternates((await getLocale()) as "bn" | "en", "/signup") };
 }
 
 export default async function SignupPage() {

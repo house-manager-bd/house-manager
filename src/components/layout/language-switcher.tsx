@@ -1,7 +1,7 @@
 "use client";
 
 import { Languages } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import { useTransition } from "react";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { setPreferredLocale } from "@/lib/actions/profile";
@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 
 export function LanguageSwitcher({ signedIn }: { signedIn: boolean }) {
   const locale = useLocale();
-  const t = useTranslations("Nav");
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
@@ -34,13 +33,17 @@ export function LanguageSwitcher({ signedIn }: { signedIn: boolean }) {
       size="sm"
       onClick={switchLanguage}
       disabled={pending}
-      aria-label={target === "en" ? t("switchToEnglish") : t("switchToBangla")}
-      lang={target}
     >
       <Languages aria-hidden />
-      <span className={target === "en" ? "font-latin" : "font-bangla"}>
+      {/* The visible label is the button's name (F12, WCAG "label in name"):
+          "English" or "বাংলা", read in its own language. Phones show a short
+          form, and screen readers still hear the full word. */}
+      <span lang={target} className={target === "en" ? "font-latin" : "font-bangla"}>
         <span className="hidden sm:inline">{label}</span>
-        <span className="sm:hidden">{shortLabel}</span>
+        <span className="sm:hidden" aria-hidden>
+          {shortLabel}
+        </span>
+        <span className="sr-only sm:hidden">{label}</span>
       </span>
     </Button>
   );

@@ -23,13 +23,12 @@
     "logout": "Log out",
     "openMenu": "Open account menu",
     "language": "Language",
-    "switchToEnglish": "Switch to English",
-    "switchToBangla": "Switch to Bangla",
     "switchToHost": "Switch to landlord mode",
     "switchToSeek": "Switch to seeker mode",
     "modeSeek": "Seeker mode",
     "modeHost": "Landlord mode",
-    "admin": "Admin"
+    "admin": "Admin",
+    "skipToContent": "Skip to main content"
   },
   "Home": {
     "badge": "Starting in Mirpur, Dhaka",
@@ -74,7 +73,7 @@
     "modeHostTitle": "Rent out my property",
     "modeHostBody": "Post ads for flats or rooms you own or manage.",
     "passwordHint": "At least 8 characters.",
-    "consentNote": "By creating an account you agree to keep your information correct and to use House Manager only for genuine rentals.",
+    "consentNote": "By creating an account, you agree to keep your information correct, to use House Manager only for genuine rentals, and to the <terms>Terms of use</terms> and the <privacy>Privacy policy</privacy>.",
     "checkEmailTitle": "Check your email",
     "checkEmailBody": "We sent a confirmation link to {email}. Open it to finish creating your account. If you cannot find it, look in the spam folder.",
     "forgotTitle": "Reset your password",
@@ -272,7 +271,11 @@
   "Footer": {
     "tagline": "Broker-free rentals for Bangladesh.",
     "course": "A CSE 400 project at BUBT.",
-    "copyright": "© {year} House Manager"
+    "copyright": "© {year} House Manager",
+    "legalNav": "About House Manager",
+    "rights": "Know your rights",
+    "terms": "Terms of use",
+    "privacy": "Privacy policy"
   },
   "Location": {
     "division": "Division",
@@ -785,7 +788,8 @@
     "atThisPin": "{count, plural, one {# ad here} other {# ads here}}",
     "mapApproxNote": "Each pin shows the area of a building, not its exact spot. Members see the exact address on the ad.",
     "listInView": "Ads in this part of the map",
-    "mapMore": "Showing {shown, number} of {total, number}. Zoom in to see the others, or use the list."
+    "mapMore": "Showing {shown, number} of {total, number}. Zoom in to see the others, or use the list.",
+    "resultsHeading": "Ads"
   },
   "Photos": {
     "count": "{count, number} of {max, number} photos",
@@ -1629,5 +1633,284 @@
     "dashboardTitle": "Coming visits",
     "dashboardSeeker": "Your visit",
     "dashboardLandlord": "{name} comes to see it"
+  },
+  "Legal": {
+    "updated": "Last updated: {date}",
+    "onThisPage": "On this page",
+    "contact": "Questions about this page? Write to <email></email>.",
+    "lawLink": "Read the full law on the Laws of Bangladesh website (in Bangla)"
+  },
+  "Rights": {
+    "metaTitle": "Tenant rights in Bangladesh",
+    "metaDescription": "What the Premises Rent Control Act 1991 says about advance, fair rent, receipts, eviction and repairs, in plain words.",
+    "title": "Know your rights as a tenant",
+    "intro": "The Premises Rent Control Act, 1991 is the main law for renting a home in Bangladesh. This page sums up what it says, so tenants and landlords both know where they stand.",
+    "note": "This is general information, not legal advice. For a dispute, talk to a lawyer or to the Rent Controller's office.",
+    "sections": [
+      {
+        "id": "advance",
+        "heading": "Advance and deposits",
+        "body": [
+          "A landlord may take at most one month's rent as advance, unless the Rent Controller agrees in writing (section 10).",
+          "No premium, salami or security deposit may be taken on top of the rent. Taking more can lead to a fine (section 23).",
+          "Many landlords still ask for two or three months. House Manager shows a warning on any ad that asks for more than one month."
+        ]
+      },
+      {
+        "id": "rent",
+        "heading": "Fair rent",
+        "body": [
+          "The landlord or the tenant can ask the Rent Controller to fix the standard rent of a home. It is worked out as 15 percent of the property's market value per year (section 15), and can be fixed again every two years (section 16).",
+          "Rent above the standard rent cannot be recovered by law, whatever the agreement says (section 7)."
+        ]
+      },
+      {
+        "id": "receipts",
+        "heading": "Rent receipts",
+        "body": [
+          "Every time you pay rent, the landlord must give you a signed receipt at once and keep the counterfoil (section 13). A landlord who does not can be fined twice the amount received (section 27).",
+          "Keep every receipt. Paying by bank or mobile banking also leaves a record."
+        ]
+      },
+      {
+        "id": "eviction",
+        "heading": "Eviction",
+        "body": [
+          "As long as you pay the full rent on time and keep to the agreement, a court will not order you out (section 18). The law allows eviction only for reasons such as these:"
+        ],
+        "points": [
+          "subletting without the landlord's written consent",
+          "causing a nuisance to neighbours",
+          "using the home for business",
+          "breaking a tenant's duties under the Transfer of Property Act, for example by damaging the home",
+          "the landlord genuinely needing the home to rebuild it or to live in it"
+        ],
+        "after": [
+          "The end of the agreement, or the sale of the building, is not enough on its own while you keep paying the rent.",
+          "Pay by the date in your agreement. If no date was agreed, pay each month's rent by the 15th of the next month. Paying late can take this protection away."
+        ]
+      },
+      {
+        "id": "refused",
+        "heading": "If the landlord refuses your rent",
+        "body": [
+          "If the landlord refuses rent you sent by money order, you can deposit it with the Rent Controller within 15 days of the money order coming back (section 19). Later months can be deposited the same way, so you never fall behind."
+        ]
+      },
+      {
+        "id": "repairs",
+        "heading": "Repairs and services",
+        "body": [
+          "If the landlord has to keep water, electricity, drainage or a lift working, you can ask the Rent Controller to order the repair (section 21).",
+          "For an urgent repair, you can give the landlord written notice. If nothing is done within 72 hours, you can have the work done and the Rent Controller decides how much you may take from the rent, within a limit."
+        ]
+      },
+      {
+        "id": "complaints",
+        "heading": "Complaints and appeals",
+        "body": [
+          "A complaint about rent above the standard rent, an advance above the limit or a missing receipt must be made within six months (section 29).",
+          "If you disagree with an order of the Rent Controller, you can appeal to the District Judge within 30 days (section 30)."
+        ]
+      },
+      {
+        "id": "tips",
+        "heading": "Before you pay anything",
+        "points": [
+          "Visit the home and meet the owner first.",
+          "Ask for a written rental agreement, and read it before you sign.",
+          "Get a receipt for the advance and for every month's rent.",
+          "In Dhaka, fill in the police tenant information form (the DMP form) after you move in.",
+          "Never pay a broker. House Manager never asks you for money."
+        ]
+      }
+    ]
+  },
+  "Terms": {
+    "metaTitle": "Terms of use",
+    "metaDescription": "The rules for using House Manager: who can post, what ads must be like, and what House Manager does and does not do.",
+    "title": "Terms of use",
+    "intro": "House Manager connects people who rent out homes in Bangladesh with people looking for one. By using the site, you agree to these terms.",
+    "note": "House Manager is a student project (CSE 400 at BUBT). It is free to use and takes no commission.",
+    "sections": [
+      {
+        "id": "account",
+        "heading": "Your account",
+        "points": [
+          "You must be 18 or older.",
+          "One account per person, with your real name and your own mobile number.",
+          "Keep your password to yourself. You are responsible for what is done from your account."
+        ]
+      },
+      {
+        "id": "posting",
+        "heading": "Who can post an ad",
+        "body": [
+          "Only these people may post an ad:"
+        ],
+        "points": [
+          "the owner of the home",
+          "a caretaker with the owner's permission (the ad shows the owner's name)",
+          "a tenant with the owner's written permission to sublet"
+        ],
+        "after": [
+          "Brokers and agents may not post ads, and nobody may charge a fee through House Manager."
+        ]
+      },
+      {
+        "id": "ads",
+        "heading": "What your ad must be like",
+        "points": [
+          "The home is real and available, and you have the right to rent it out.",
+          "The photos are of this home, and you may use them.",
+          "The rent, advance and other costs are the real amounts.",
+          "There is only one open ad for each flat, room or mess room.",
+          "When the home is rented, you mark the ad as rented."
+        ]
+      },
+      {
+        "id": "conduct",
+        "heading": "What is not allowed",
+        "points": [
+          "fake ads, or asking for money before a visit",
+          "collecting phone numbers or other members' details for anything other than renting a home",
+          "harassing, threatening or misleading other members",
+          "sharing another person's private details",
+          "anything against the law of Bangladesh"
+        ]
+      },
+      {
+        "id": "moderation",
+        "heading": "How ads are checked",
+        "body": [
+          "Ads go through automatic checks, and a new member's first ad is reviewed by our team. Members can report an ad, and an ad with three reports is hidden until we look at it.",
+          "We may reject, hide or remove an ad, and suspend an account that breaks these terms. Each member can open 20 phone numbers a day, so numbers cannot be collected in bulk."
+        ]
+      },
+      {
+        "id": "role",
+        "heading": "What House Manager does not do",
+        "points": [
+          "We are not a party to any rental agreement, and we never take or hold rent or advance money.",
+          "We check ads, but we cannot check every person or every home. Visit the home and meet the owner before you pay.",
+          "The rental itself is between the landlord and the tenant, under the law of Bangladesh."
+        ]
+      },
+      {
+        "id": "content",
+        "heading": "Your photos and text",
+        "body": [
+          "You keep the rights to the photos and text you post. You allow House Manager to show them on the site and in share previews while your ad is up."
+        ]
+      },
+      {
+        "id": "liability",
+        "heading": "Limits",
+        "body": [
+          "The site is offered as it is. As far as the law allows, House Manager is not responsible for losses that come from dealings between members."
+        ]
+      },
+      {
+        "id": "changes",
+        "heading": "Changes",
+        "body": [
+          "You can stop using House Manager at any time. We may change these terms; the date at the bottom of this page shows the latest version. These terms follow the law of Bangladesh."
+        ]
+      }
+    ]
+  },
+  "Privacy": {
+    "metaTitle": "Privacy policy",
+    "metaDescription": "What House Manager collects, who can see it and when, how it is protected and how long it is kept.",
+    "title": "Privacy policy",
+    "intro": "House Manager shares your details step by step, only when a rental needs them. This page explains what we collect and who can see it.",
+    "note": "We do not sell your details, show advertising or use tracking tools.",
+    "sections": [
+      {
+        "id": "collect",
+        "heading": "What we collect",
+        "points": [
+          "Account: your email address and password, or your name, email address and photo from Google if you sign in with Google.",
+          "Profile: your name, photo, mobile number, language, and whether you are looking for a home or renting one out.",
+          "Properties and ads: the building's address and map pin, its units, photos, rent and costs, and the contact number for the ad.",
+          "Requests and messages: who will live there, how many people, occupation, move-in date, your messages, offers and visit times.",
+          "After you accept an offer: your national ID (NID) number, a photo of you and your permanent address, with the time you agreed.",
+          "Saved ads, reports, notifications and your email setting."
+        ]
+      },
+      {
+        "id": "see",
+        "heading": "Who can see what",
+        "points": [
+          "Anyone: an ad's photos, rent, area, features and an approximate place on the map.",
+          "Signed-in members: an ad's exact address, and its phone number (up to 20 numbers a day).",
+          "The landlord, when you send a request: your name, photo and the request details. Your mobile number only after they shortlist you, and not after you withdraw.",
+          "Only you and the landlord (the poster and the building's managers): your NID number, photo and permanent address, and only after you accept their offer.",
+          "Our admins can see ads, requests, reports and accounts to keep the site safe. They cannot read messages, NID details or tenant photos."
+        ]
+      },
+      {
+        "id": "protect",
+        "heading": "How we protect it",
+        "points": [
+          "NID numbers are encrypted on our server with a key that is not kept in the database. Only the last 4 digits are stored as plain text.",
+          "Rules inside the database decide who can read each record, so a mistake on a page cannot show private details.",
+          "Tenant photos are kept in a private store and open only through links that stop working after 10 minutes.",
+          "Passwords are stored only in scrambled (hashed) form by our login provider. Nobody on the team can see them."
+        ]
+      },
+      {
+        "id": "where",
+        "heading": "Where it is stored",
+        "body": [
+          "Your data is kept by Supabase (database, files and login), and the site runs on Vercel, both in Singapore. Emails are sent through Google's Gmail."
+        ]
+      },
+      {
+        "id": "emails",
+        "heading": "Emails",
+        "body": [
+          "We email you when something happens to your requests, offers, visits or ads. You can turn emails off on the Notifications page. Our emails never ask for passwords, OTPs or PINs."
+        ]
+      },
+      {
+        "id": "cookies",
+        "heading": "Cookies",
+        "body": [
+          "We use cookies only to keep you signed in and to remember your language. There are no advertising or tracking cookies."
+        ]
+      },
+      {
+        "id": "keep",
+        "heading": "How long we keep it",
+        "points": [
+          "Read notifications: 90 days.",
+          "Email records: 30 days.",
+          "Visit times: free times one day after they end, booked visits after 90 days.",
+          "Everything else: while your account exists, or until you delete it (a draft ad, for example)."
+        ]
+      },
+      {
+        "id": "choices",
+        "heading": "Your choices",
+        "body": [
+          "You can change your profile, turn off emails and delete drafts at any time. To get a copy of your data or to delete your account, write to us. Details that belong to a tenancy may have to be kept while the tenancy lasts."
+        ]
+      },
+      {
+        "id": "age",
+        "heading": "Age",
+        "body": [
+          "House Manager is for people aged 18 or older."
+        ]
+      },
+      {
+        "id": "changes",
+        "heading": "Changes",
+        "body": [
+          "If we change this policy, we update the date at the bottom of this page."
+        ]
+      }
+    ]
   }
 }

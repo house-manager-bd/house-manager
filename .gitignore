@@ -155,3 +155,8 @@ next-env.d.ts
 *.pem
 supabase/.temp
 supabase/.branches
+
+# Playwright (F12)
+/e2e-report/
+/e2e-results/
+/playwright/.cache/

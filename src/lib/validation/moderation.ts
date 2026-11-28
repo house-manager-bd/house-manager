@@ -4,18 +4,9 @@ import { optionalText } from "./common";
 // F5 moderation. The database functions repeat every check
 // (report_listing, moderate_listing, set_user_ban).
 
-export const REPORT_REASONS = [
-  "broker",
-  "fake",
-  "already_rented",
-  "wrong_info",
-  "discriminatory",
-  "offensive",
-  "other",
-] as const;
+import { ADMIN_LISTING_ACTIONS, NOTE_MAX, REPORT_REASONS, type AdminListingAction } from "./options";
 
-/** Longest report details, admin note or ban reason (same as the database). */
-export const NOTE_MAX = 500;
+export { ADMIN_LISTING_ACTIONS, NOTE_MAX, REPORT_REASONS, type AdminListingAction };
 
 export const reportSchema = z
   .object({
@@ -30,10 +21,6 @@ export const reportSchema = z
   });
 
 export type ReportInput = z.input<typeof reportSchema>;
-
-/** Admin decisions on one ad. auto_hide, ban and unban are not chosen here. */
-export const ADMIN_LISTING_ACTIONS = ["approve", "reject", "hide", "restore"] as const;
-export type AdminListingAction = (typeof ADMIN_LISTING_ACTIONS)[number];
 
 export const moderateSchema = z
   .object({

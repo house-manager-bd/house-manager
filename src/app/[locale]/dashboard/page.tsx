@@ -32,14 +32,12 @@ import { getMyUpcomingViewings } from "@/lib/data/viewings";
 import { formatTime, formatVisitDayShort } from "@/lib/format";
 import { manageState } from "@/lib/listing-manage";
 import { OPEN_STATUSES } from "@/lib/validation/request";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ModeSwitchButton } from "@/components/dashboard/mode-switch-button";
 import { LiveRefresh } from "@/components/messages/live-refresh";
-
-/** The project's contact address (shown to suspended members). */
-const SUPPORT_EMAIL = "housemanagerbd@gmail.com";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Nav");

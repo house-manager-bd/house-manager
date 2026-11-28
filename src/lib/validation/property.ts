@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { checkbox, optionalInt, optionalText, requiredInt, requiredText } from "./common";
 
-export const AMENITIES = ["lift", "parking", "generator", "security_guard", "cctv", "rooftop"] as const;
+import { AMENITIES } from "./options";
+
+export { AMENITIES };
 export const GAS_TYPES = ["titas_line", "lpg", "none"] as const;
 export const NEARBY_KINDS = ["metro", "bus_stop", "market", "school", "hospital", "mosque", "park"] as const;
 export const MY_ROLES = ["owner", "caretaker", "tenant"] as const;

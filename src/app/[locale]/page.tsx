@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { ArrowRight, Languages, MapPin, ShieldCheck, UserRoundX } from "lucide-react";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
@@ -6,6 +7,9 @@ import { getLocationTree } from "@/lib/data/locations";
 import { latestListings } from "@/lib/data/search";
 import { areaLabels, placeGroups } from "@/lib/search";
 import { EMPTY_FILTERS, searchHref } from "@/lib/validation/search";
+import { pageAlternates } from "@/lib/seo";
+import { absoluteUrl, SUPPORT_EMAIL } from "@/lib/site";
+import { JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { HomeSearch } from "@/components/search/home-search";
 import { ListingCard } from "@/components/search/listing-card";
@@ -14,13 +18,21 @@ import { ListingCard } from "@/components/search/listing-card";
 const POPULAR_AREAS = [10018, 10001, 10002, 10010, 10011, 10012, 10004, 10005, 10013];
 const LATEST_COUNT = 8;
 
+export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params;
+  return { alternates: pageAlternates(locale as "bn" | "en", "") };
+}
+
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
   const lang = locale as "bn" | "en";
   setRequestLocale(lang);
-  const [t, tSearch, user, tree, latest] = await Promise.all([
+  const [t, tSearch, tCommon, tOtherCommon, tMeta, user, tree, latest] = await Promise.all([
     getTranslations("Home"),
     getTranslations("Search"),
+    getTranslations("Common"),
+    getTranslations({ locale: lang === "bn" ? "en" : "bn", namespace: "Common" }),
+    getTranslations("Metadata"),
     getCurrentUser(),
     getLocationTree(),
     latestListings(LATEST_COUNT),
@@ -37,8 +49,35 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const labels = areaLabels(tree, lang);
   const popular = POPULAR_AREAS.map((id) => tree.areas.find((a) => a.id === id)).filter((a) => a !== undefined);
 
+  // F12: who runs the site and how to search it, for search engines.
+  const structured = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: tCommon("appName"),
+      alternateName: tOtherCommon("appName"),
+      url: absoluteUrl(`/${lang}`),
+      inLanguage: lang,
+      description: tMeta("description"),
+      potentialAction: {
+        "@type": "SearchAction",
+        target: { "@type": "EntryPoint", urlTemplate: `${absoluteUrl(`/${lang}/ads`)}?q={search_term_string}` },
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: tCommon("appName"),
+      url: absoluteUrl(`/${lang}`),
+      logo: absoluteUrl("/icon-512.png"),
+      email: SUPPORT_EMAIL,
+    },
+  ];
+
   return (
     <>
+      <JsonLd data={structured} />
       <section className="border-b bg-background">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:py-16">
           <span className="w-fit rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground sm:text-sm">

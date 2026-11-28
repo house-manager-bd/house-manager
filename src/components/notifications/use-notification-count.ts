@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { NOTIFICATIONS_READ_EVENT, watchNotifications } from "@/lib/realtime";
+import { NOTIFICATIONS_READ_EVENT } from "@/lib/realtime-events";
 
 /**
  * The member's unread notifications, kept up to date while the page is open
@@ -17,15 +16,19 @@ export function useNotificationCount(userId: string, initial: number) {
   if (state.initial !== initial) setState({ initial, count: initial });
 
   useEffect(() => {
-    const supabase = createClient();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cancelled = false;
+    let stop = () => {};
+    // F12: the Supabase client is loaded only here, after the page has
+    // shown, so the header does not add it to every visitor's download.
+    const modules = Promise.all([import("@/lib/supabase/client"), import("@/lib/realtime")]);
 
     // Marking all as read changes many rows at once, so wait a moment and ask once.
     const recount = () => {
       clearTimeout(timer);
       timer = setTimeout(async () => {
-        const { data } = await supabase.rpc("unread_notification_count");
+        const [{ createClient }] = await modules;
+        const { data } = await createClient().rpc("unread_notification_count");
         if (!cancelled && typeof data === "number") setState((s) => ({ ...s, count: data }));
       }, 400);
     };
@@ -33,7 +36,9 @@ export function useNotificationCount(userId: string, initial: number) {
       if (document.visibilityState === "visible") recount();
     };
 
-    const stop = watchNotifications({ userId, onChange: recount });
+    modules.then(([, { watchNotifications }]) => {
+      if (!cancelled) stop = watchNotifications({ userId, onChange: recount });
+    });
     window.addEventListener(NOTIFICATIONS_READ_EVENT, recount);
     document.addEventListener("visibilitychange", onVisible);
     return () => {

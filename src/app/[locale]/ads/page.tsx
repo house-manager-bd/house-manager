@@ -7,6 +7,8 @@ import { getLocationTree, type LocationTree } from "@/lib/data/locations";
 import { getSavedIds } from "@/lib/data/saved";
 import { searchListings } from "@/lib/data/search";
 import { areaLabels, placeAreaIds, placeGroups, placeName, placeView } from "@/lib/search";
+import { openGraphFor, pageAlternates } from "@/lib/seo";
+import { absoluteUrl } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import {
   countPanelFilters,
@@ -28,6 +30,7 @@ import { Pagination } from "@/components/search/pagination";
 import { SearchBar, type PlaceName } from "@/components/search/search-bar";
 import { SearchMapLazy } from "@/components/search/search-map-lazy";
 import { SortSelect } from "@/components/search/sort-select";
+import { JsonLd, breadcrumbList } from "@/components/seo/json-ld";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -54,8 +57,9 @@ function headingFor(t: Awaited<ReturnType<typeof getTranslations<"Search">>>, tr
 export async function generateMetadata({ params, searchParams }: PageProps<"/[locale]/ads">): Promise<Metadata> {
   const { locale } = await params;
   const lang = locale as Lang;
-  const [t, tree, raw] = await Promise.all([
+  const [t, tCommon, tree, raw] = await Promise.all([
     getTranslations({ locale: lang, namespace: "Search" }),
+    getTranslations({ locale: lang, namespace: "Common" }),
     getLocationTree(),
     searchParams,
   ]);
@@ -63,13 +67,13 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[lo
   // The canonical page keeps only the place and a single ad type.
   const canonical = { ...EMPTY_FILTERS, place: f.place, types: f.types.slice(0, 1) };
   const qs = toQueryString(canonical);
-  const path = (l: Lang) => `/${l}/ads${qs ? `?${qs}` : ""}`;
+  const path = `/ads${qs ? `?${qs}` : ""}`;
   const title = headingFor(t, tree, f, lang);
   return {
     title,
     description: t("metaDescription"),
-    alternates: { canonical: path(lang), languages: { bn: path("bn"), en: path("en") } },
-    openGraph: { title, description: t("metaDescription"), url: path(lang), type: "website" },
+    alternates: pageAlternates(lang, path),
+    openGraph: openGraphFor(lang, { title, description: t("metaDescription"), path, siteName: tCommon("appName") }),
     robots: isIndexable(f) ? undefined : { index: false, follow: true },
   };
 }
@@ -77,7 +81,12 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[lo
 export default async function SearchPage({ params, searchParams }: PageProps<"/[locale]/ads">) {
   const { locale } = await params;
   const lang = locale as Lang;
-  const [t, tree, raw] = await Promise.all([getTranslations("Search"), getLocationTree(), searchParams]);
+  const [t, tCommon, tree, raw] = await Promise.all([
+    getTranslations("Search"),
+    getTranslations("Common"),
+    getLocationTree(),
+    searchParams,
+  ]);
   const filters = parseSearchParams(raw);
   const areaIds = placeAreaIds(tree, filters.place);
   const isMap = filters.view === "map";
@@ -126,8 +135,19 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
     );
   };
 
+  // F12: breadcrumbs for search engines on the indexable area and thana pages.
+  const crumbs =
+    isIndexable(filters) && filters.place && placeLabel
+      ? breadcrumbList([
+          [tCommon("appName"), absoluteUrl(`/${lang}`)],
+          [t("title"), absoluteUrl(`/${lang}/ads`)],
+          [headingFor(t, tree, filters, lang), absoluteUrl(`/${lang}${searchHref(EMPTY_FILTERS, { place: filters.place })}`)],
+        ])
+      : null;
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6 sm:py-8">
+      {crumbs && <JsonLd data={crumbs} />}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold sm:text-3xl">{headingFor(t, tree, filters, lang)}</h1>
         <p className="text-muted-foreground">{t("subtitle")}</p>
@@ -197,6 +217,8 @@ export default async function SearchPage({ params, searchParams }: PageProps<"/[
             </div>
           ) : (
             <>
+              {/* Keeps the heading order h1, h2, h3 on phones, where the filter heading is hidden (F12). */}
+              <h2 className="sr-only">{t("resultsHeading")}</h2>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {results.map((ad, i) => (
                   <li key={ad.id} className="relative flex">

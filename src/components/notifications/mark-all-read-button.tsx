@@ -4,7 +4,7 @@ import { CheckCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTransition } from "react";
 import { markAllNotificationsRead } from "@/lib/actions/notification";
-import { NOTIFICATIONS_READ_EVENT } from "@/lib/realtime";
+import { NOTIFICATIONS_READ_EVENT } from "@/lib/realtime-events";
 import { Button } from "@/components/ui/button";
 
 /** Marks every notification read (F9). The action revalidates, so the list re-renders. */
